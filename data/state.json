@@ -1,6 +1,6 @@
 {
   "initialized": true,
-  "last_daily_schedule_date": "2026-09-08",
+  "last_daily_schedule_date": "2026-09-09",
   "matches": {
     "2397722": {
       "event": "PGL Masters Bucharest 2026 Europe Closed Qualifier",
@@ -20,6 +20,7 @@
     }
   },
   "news_ids": [
+    "45482",
     "45477",
     "45481",
     "45480",
@@ -28,8 +29,7 @@
     "45478",
     "45474",
     "45475",
-    "45476",
-    "45473"
+    "45476"
   ],
   "recent_result_ids": [
     "2397424",
@@ -40,6 +40,6 @@
   "transfer_ids": [
     "14006672c608ee51"
   ],
-  "updated_at": "2026-09-08T14:45:21.957110Z",
+  "updated_at": "2026-09-08T17:51:05.843797Z",
   "version": 1
 }
