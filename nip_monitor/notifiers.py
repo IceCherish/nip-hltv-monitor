@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -22,6 +23,8 @@ class NotificationError(RuntimeError):
 
 
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
+MAX_ARTICLE_IMAGES = 8
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
 
 def _format_published_at(value: str) -> str:
@@ -36,6 +39,69 @@ def _format_published_at(value: str) -> str:
         published = published.replace(tzinfo=timezone.utc)
     local = published.astimezone(SHANGHAI)
     return f"{local.year}年{local.month}月{local.day}日 {local:%H:%M}（北京时间）"
+
+
+def _download_image(url: str) -> tuple[bytes, str]:
+    request = Request(
+        url,
+        headers={"User-Agent": "nip-hltv-monitor/1.0 (personal, non-commercial monitor)"},
+    )
+    try:
+        with urlopen(request, timeout=45) as response:
+            content_type = response.headers.get_content_type()
+            if not content_type.startswith("image/"):
+                raise NotificationError(f"返回内容不是图片：{content_type}")
+            data = response.read(MAX_IMAGE_BYTES + 1)
+    except NotificationError:
+        raise
+    except Exception as exc:
+        raise NotificationError(f"图片下载失败：{exc}") from exc
+    if len(data) > MAX_IMAGE_BYTES:
+        raise NotificationError("图片超过 4 MiB，已跳过")
+    if not data:
+        raise NotificationError("图片内容为空")
+    return data, content_type
+
+
+def _article_operations(label: str, article: Article) -> list[tuple[str, str]]:
+    header = f"{label}\n\n{article.title}"
+    if article.published_at:
+        header += f"\n发布时间：{_format_published_at(article.published_at)}"
+    pending = header + "\n━━━━━━━━━━━━"
+    operations: list[tuple[str, str]] = []
+    text_count = 0
+    image_count = 0
+
+    def append_text(value: str) -> None:
+        nonlocal pending
+        addition = ("\n\n" if pending else "") + value
+        if pending and len(pending) + len(addition) > 2800:
+            operations.append(("text", pending))
+            pending = value
+        else:
+            pending += addition
+
+    for block in article.blocks:
+        if block.kind == "text":
+            if text_count >= 10:
+                continue
+            text_count += 1
+            append_text(block.text)
+        elif block.kind == "image":
+            if text_count >= 10 or image_count >= MAX_ARTICLE_IMAGES or not block.url:
+                continue
+            if pending:
+                operations.append(("text", pending))
+                pending = ""
+            operations.append(("image", block.url))
+            image_count += 1
+        elif block.kind == "schedule":
+            append_text(_format_article_schedule(block))
+
+    append_text(f"🔗点此阅读原文：{article.original_url}")
+    if pending:
+        operations.append(("text", pending))
+    return operations
 
 
 class Notifier:
@@ -56,45 +122,25 @@ class OneBotNotifier(Notifier):
         self._send_text(f"{title}\n\n{message}")
 
     def send_article(self, label: str, article: Article) -> None:
-        header = f"{label}\n\n{article.title}"
-        if article.published_at:
-            header += f"\n发布时间：{_format_published_at(article.published_at)}"
-        header += "\n━━━━━━━━━━━━"
-        pending = header
-        text_count = 0
-
-        for block in article.blocks:
-            if block.kind == "text":
-                if text_count >= 10:
-                    continue
-                text_count += 1
-                addition = f"\n\n{block.text}"
-                if len(pending) + len(addition) > 2800:
-                    self._send_text(pending)
-                    pending = block.text
-                else:
-                    pending += addition
-            elif block.kind == "schedule":
-                addition = "\n\n" + _format_article_schedule(block)
-                if len(pending) + len(addition) > 2800:
-                    self._send_text(pending)
-                    pending = addition.strip()
-                else:
-                    pending += addition
-
-        footer = f"\n\n🔗点此阅读原文：{article.original_url}"
-        if len(pending) + len(footer) > 2800:
-            if pending.strip():
-                self._send_text(pending)
-            pending = footer.strip()
-        else:
-            pending += footer
-        if pending.strip():
-            self._send_text(pending)
+        for kind, value in _article_operations(label, article):
+            if kind == "text":
+                self._send_text(value)
+                continue
+            try:
+                data, _ = _download_image(value)
+                self._send_image_data(data)
+            except NotificationError as exc:
+                print(f"图片发送失败，已跳过且继续发送文字：{exc}")
 
     def _send_text(self, text: str) -> None:
         for start in range(0, len(text), 3000):
             self._post_message([{"type": "text", "data": {"text": text[start:start + 3000]}}])
+
+    def _send_image_data(self, data: bytes) -> None:
+        encoded = base64.b64encode(data).decode("ascii")
+        self._post_message(
+            [{"type": "image", "data": {"file": f"base64://{encoded}"}}]
+        )
 
     def _post_message(self, message: list[dict[str, object]]) -> None:
         payload = json.dumps(
@@ -128,8 +174,28 @@ class RelayNotifier(Notifier):
     name = "国内 QQ 中继"
 
     def send(self, title: str, message: str) -> None:
+        self._send_payload({"kind": "notification", "title": title, "message": message})
+
+    def send_article(self, label: str, article: Article) -> None:
+        for kind, value in _article_operations(label, article):
+            if kind == "text":
+                self._send_payload({"kind": "text", "text": value})
+                continue
+            try:
+                data, content_type = _download_image(value)
+                self._send_payload(
+                    {
+                        "kind": "image",
+                        "content_type": content_type,
+                        "data": base64.b64encode(data).decode("ascii"),
+                    }
+                )
+            except NotificationError as exc:
+                print(f"图片中继失败，已跳过且继续发送文字：{exc}")
+
+    def _send_payload(self, payload: dict[str, object]) -> None:
         body = json.dumps(
-            {"title": title, "message": message},
+            payload,
             ensure_ascii=False,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -151,7 +217,7 @@ class RelayNotifier(Notifier):
             },
         )
         try:
-            with urlopen(request, timeout=60) as response:
+            with urlopen(request, timeout=90) as response:
                 response.read()
         except Exception as exc:
             raise NotificationError(f"发送到国内中继失败：{exc}") from exc
@@ -282,7 +348,7 @@ def deliver_article(label: str, article: Article, notifiers: list[Notifier]) -> 
     errors: list[str] = []
     for notifier in notifiers:
         try:
-            if isinstance(notifier, OneBotNotifier):
+            if isinstance(notifier, (OneBotNotifier, RelayNotifier)):
                 notifier.send_article(label, article)
             else:
                 notifier.send(label, plain)

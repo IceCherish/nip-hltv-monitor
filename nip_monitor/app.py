@@ -226,6 +226,16 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     return 0
 
 
+def reset_news_state() -> None:
+    state = load_state(STATE_PATH)
+    state["initialized"] = False
+    state["news_ids"] = []
+    state["last_daily_schedule_date"] = ""
+    state["updated_at"] = ""
+    save_state(STATE_PATH, state)
+    print("已清除首次运行和新闻去重记录；下次 monitor 会重新发送赛程和最新 5 条新闻。")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="免费监控 HLTV 新闻和 NIP 赛程")
     parser.add_argument("--test-notification", action="store_true", help="只发送一条测试通知")
@@ -234,8 +244,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="发送一篇含中文正文和文中赛程的真实测试新闻",
     )
+    parser.add_argument(
+        "--reset-news-state",
+        action="store_true",
+        help="清除首次运行和新闻去重记录，不发送消息",
+    )
     args = parser.parse_args(argv)
     try:
+        if args.reset_news_state:
+            reset_news_state()
+            return 0
         if args.test_notification or args.test_rich_article:
             notifiers = configured_notifiers()
             if not notifiers:

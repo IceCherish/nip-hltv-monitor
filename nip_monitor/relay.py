@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -13,7 +14,8 @@ from .notifiers import NotificationError, OneBotNotifier
 
 
 ROOT = Path(__file__).resolve().parent.parent
-MAX_BODY_BYTES = 64 * 1024
+MAX_BODY_BYTES = 6 * 1024 * 1024
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
 _seen_nonces: dict[str, int] = {}
 _nonce_lock = threading.Lock()
 
@@ -44,6 +46,38 @@ def _consume_nonce(nonce: str, timestamp: int, max_age: int) -> bool:
             return False
         _seen_nonces[nonce] = timestamp
         return True
+
+
+def _forward_payload(payload: dict[str, object], notifier: OneBotNotifier) -> None:
+    kind = payload.get("kind", "notification")
+    if kind == "notification":
+        title = payload["title"]
+        message = payload["message"]
+        if not isinstance(title, str) or not isinstance(message, str):
+            raise ValueError("title and message must be strings")
+        if not title.strip() or len(title) > 200 or len(message) > 20_000:
+            raise ValueError("message size is invalid")
+        notifier.send(title, message)
+        return
+    if kind == "text":
+        text = payload["text"]
+        if not isinstance(text, str) or not text.strip() or len(text) > 20_000:
+            raise ValueError("message size is invalid")
+        notifier._send_text(text)
+        return
+    if kind == "image":
+        encoded = payload["data"]
+        if not isinstance(encoded, str):
+            raise ValueError("image data must be a base64 string")
+        try:
+            image = base64.b64decode(encoded, validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise ValueError("invalid image data") from exc
+        if not image or len(image) > MAX_IMAGE_BYTES:
+            raise ValueError("image size is invalid")
+        notifier._send_image_data(image)
+        return
+    raise ValueError("unsupported message kind")
 
 
 class RelayHandler(BaseHTTPRequestHandler):
@@ -94,18 +128,14 @@ class RelayHandler(BaseHTTPRequestHandler):
             return
         try:
             payload = json.loads(body.decode("utf-8"))
-            title = payload["title"]
-            message = payload["message"]
-            if not isinstance(title, str) or not isinstance(message, str):
-                raise ValueError("title and message must be strings")
-            if not title.strip() or len(title) > 200 or len(message) > 20_000:
-                raise ValueError("message size is invalid")
+            if not isinstance(payload, dict):
+                raise ValueError("payload must be an object")
             notifier = OneBotNotifier(
                 base_url=os.getenv("ONEBOT_HTTP_URL", "http://127.0.0.1:3000"),
                 group_id=int(os.environ["QQ_GROUP_ID"]),
                 access_token=os.getenv("ONEBOT_ACCESS_TOKEN", ""),
             )
-            notifier.send(title, message)
+            _forward_payload(payload, notifier)
         except (KeyError, ValueError, json.JSONDecodeError) as exc:
             self._reply(400, {"ok": False, "error": str(exc)})
             return

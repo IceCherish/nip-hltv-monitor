@@ -32,6 +32,23 @@ class MonitorFlowTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def test_reset_news_state_keeps_reminder_history(self):
+        app.save_state(
+            self.state_path,
+            {
+                "initialized": True,
+                "news_ids": ["45480"],
+                "sent_reminders": ["match-1"],
+                "last_daily_schedule_date": "2026-09-08",
+            },
+        )
+        with patch.object(app, "STATE_PATH", self.state_path):
+            app.reset_news_state()
+        state = app.load_state(self.state_path)
+        self.assertFalse(state["initialized"])
+        self.assertEqual(state["news_ids"], [])
+        self.assertEqual(state["sent_reminders"], ["match-1"])
+
     def _patch_monitor(self):
         return (
             patch.object(app, "STATE_PATH", self.state_path),

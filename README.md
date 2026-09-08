@@ -3,8 +3,8 @@
 最终推荐架构：
 
 ```text
-GitHub Actions 抓取、翻译、去重
-        ↓ 带 HMAC-SHA256 签名的 HTTP POST
+GitHub Actions 抓取、翻译、下载正文图片、去重
+        ↓ 带 HMAC-SHA256 签名的文字/图片 HTTP POST
 国内服务器 relay_server.py
         ↓ 只访问 127.0.0.1
 NapCat / OneBot
@@ -12,13 +12,14 @@ NapCat / OneBot
 QQ群
 ```
 
-国内服务器不需要访问 HLTV、GitHub、Jina Reader 或翻译服务，只接收已经整理好的中文文字并交给 NapCat。NapCat 的 3000 和 6099 端口不能开放到公网；公网只开放中继端口，默认 8787。
+国内服务器不需要访问 HLTV、GitHub、Jina Reader、图片 CDN 或翻译服务，只接收 GitHub 已经整理好的中文文字和图片文件并交给 NapCat。NapCat 的 3000 和 6099 端口不能开放到公网；公网只开放中继端口，默认 8787。
 
 ## 当前功能
 
 - 自动读取所有 HLTV 新闻并翻译标题、正文
 - 只发送前 10 个正文文字段落，文末始终附原文地址
-- 不抓取、下载或发送图片；排除评论区
+- 正文相册图片按原文顺序发送；排除评论区、队标、国旗等装饰图
+- 单张图片失败会自动跳过，不影响后续正文和原文链接；每篇最多 8 张、单张最多 4 MiB
 - 提取新闻正文赛程并转换为北京时间
 - 展示全部 NIP 未开赛比赛，同一赛事名称只显示一次
 - 展示 NIP 最近一个已结束赛事的全部赛果
@@ -106,6 +107,15 @@ python run_forever.py
 
 电脑关机、休眠、关闭这个窗口或退出 NapCat 后都会停止。我们不会替你执行 `python run_forever.py`，因为这条命令会真实向你配置的 QQ 群发送消息。
 
+需要让本机下次重新发送最新 5 条新闻时，先停止常驻程序，再执行：
+
+```powershell
+python monitor.py --reset-news-state
+python run_forever.py
+```
+
+第一条命令只清除首次运行和新闻编号记录，不发送消息，也不会清除已经发送过的赛前提醒。
+
 ## 模式二：GitHub 抓取，国内服务器发 QQ
 
 ### 国内服务器
@@ -156,6 +166,7 @@ systemctl status nip-relay
 
 - `test_notification`：只测试 GitHub → 国内服务器 → QQ
 - `test_article`：发送一篇真实的中文 HLTV 测试新闻
+- `reset_state`：只重置首次运行和新闻编号，不发送消息；下一次 `monitor` 会重新发送赛程和最新 5 条新闻
 - `monitor`：正式运行；第一次发送近期赛程/往期回顾和最新 5 条新闻
 
 正式成功后，GitHub Actions 默认每约 6 分钟启动一次临时检查任务。它每次只负责检查有没有新新闻、新赛程、赛果、转会或赛前提醒，检查完成就退出；这不是把 QQ 机器人每 6 分钟重启一次。没有变化时不会向 QQ 群发送消息。GitHub 的定时任务偶尔可能排队，因此不保证精确到秒。
@@ -164,7 +175,7 @@ systemctl status nip-relay
 
 `TRANSLATE_PROVIDER=auto` 时先用 Google 免费非官方端点；配置腾讯云密钥后，Google 重试失败会自动切腾讯云。腾讯密钥只存 GitHub Actions Secrets。
 
-中继请求带 Unix 时间戳、随机 nonce 和 HMAC-SHA256 签名；超过 5 分钟、重复 nonce、错误签名或超过 64 KiB 的请求会被拒绝。签名能验证来源并防篡改，但普通 HTTP 不加密新闻正文；以后有域名时建议加 HTTPS。
+中继请求带 Unix 时间戳、随机 nonce 和 HMAC-SHA256 签名；超过 5 分钟、重复 nonce、错误签名、总请求超过 6 MiB 或图片超过 4 MiB 会被拒绝。签名能验证来源并防篡改；使用 cpolar 时应优先选择 HTTPS 地址。
 
 ## 自动测试
 
@@ -172,4 +183,4 @@ systemctl status nip-relay
 python -m unittest discover -s tests -v
 ```
 
-测试覆盖新闻、赛程、赛果、转会、十段截断、图片排除、北京时间、同赛事分组，以及签名中继到 OneBot 的端到端流程。
+测试覆盖新闻、赛程、赛果、转会、十段截断、正文图片筛选、图片失败降级、北京时间、同赛事分组、状态重置，以及签名文字/图片中继到 OneBot 的端到端流程。

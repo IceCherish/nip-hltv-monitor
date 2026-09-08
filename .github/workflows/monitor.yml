@@ -12,6 +12,7 @@ on:
         default: monitor
         options:
           - monitor
+          - reset_state
           - test_notification
           - test_article
 
@@ -25,7 +26,7 @@ concurrency:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: 读取项目
         uses: actions/checkout@v4
@@ -58,13 +59,14 @@ jobs:
           RELAY_SECRET: ${{ secrets.RELAY_SECRET }}
         run: |
           case "${{ inputs.mode }}" in
+            reset_state) python monitor.py --reset-news-state ;;
             test_notification) python monitor.py --test-notification ;;
             test_article) python monitor.py --test-rich-article ;;
             *) python monitor.py ;;
           esac
 
       - name: 保存去重记录
-        if: ${{ success() && (github.event_name == 'schedule' || inputs.mode == 'monitor') }}
+        if: ${{ success() && (github.event_name == 'schedule' || inputs.mode == 'monitor' || inputs.mode == 'reset_state') }}
         run: |
           if git diff --quiet -- data/state.json; then
             echo "没有状态变化"

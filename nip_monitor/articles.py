@@ -54,6 +54,7 @@ class _ArticleHTMLParser(HTMLParser):
         self._table_matches: list[ArticleMatch] = []
         self._row: dict[str, str] | None = None
         self._cell = ""
+        self._image_urls: set[str] = set()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_map = {key: value or "" for key, value in attrs}
@@ -84,6 +85,21 @@ class _ArticleHTMLParser(HTMLParser):
                 self._cell = "team2"
             return
 
+        if tag == "img":
+            source = attrs_map.get("src", "")
+            if "/gallerypicture/" in source:
+                source = urljoin(HLTV_BASE, source)
+                if source not in self._image_urls:
+                    self._image_urls.add(source)
+                    self.blocks.append(
+                        ArticleBlock(
+                            kind="image",
+                            text=_clean_text(attrs_map.get("alt", "")),
+                            url=source,
+                        )
+                    )
+            return
+
         if self._text_depth:
             if tag == "br":
                 self._text_parts.append("\n")
@@ -95,9 +111,6 @@ class _ArticleHTMLParser(HTMLParser):
             self._text_depth = 1
             self._text_parts = []
             return
-
-        # Editorial images are intentionally ignored. The production relay is
-        # text-only so the QQ sender never depends on HLTV's image CDN.
 
     def handle_endtag(self, tag: str) -> None:
         if self._in_table:

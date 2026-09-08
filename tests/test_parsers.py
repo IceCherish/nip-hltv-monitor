@@ -1,11 +1,15 @@
 from datetime import datetime, timezone
 import unittest
+from unittest.mock import patch
 
 from nip_monitor.app import _schedule_overview_message
 from nip_monitor.articles import Article, ArticleBlock, ArticleMatch, parse_article_html
 from nip_monitor.models import Match, NewsItem, Result
 from nip_monitor.notifiers import (
+    NotificationError,
+    OneBotNotifier,
     _article_as_text,
+    _article_operations,
     _format_article_schedule,
     _format_published_at,
 )
@@ -21,6 +25,32 @@ from nip_monitor.sources import (
 
 
 class ParserTests(unittest.TestCase):
+    def test_article_image_failure_keeps_all_text(self):
+        article = Article(
+            title="Title",
+            original_url="https://www.hltv.org/news/1/test",
+            published_at="",
+            blocks=(
+                ArticleBlock(kind="text", text="before image"),
+                ArticleBlock(kind="image", url="https://img.test/image.jpg"),
+                ArticleBlock(kind="text", text="after image"),
+            ),
+        )
+        self.assertEqual(
+            [kind for kind, _ in _article_operations("news", article)],
+            ["text", "image", "text"],
+        )
+        notifier = OneBotNotifier("http://127.0.0.1:3000", 123)
+        with patch(
+            "nip_monitor.notifiers._download_image",
+            side_effect=NotificationError("download failed"),
+        ), patch.object(notifier, "_send_text") as send_text:
+            notifier.send_article("news", article)
+        rendered = "\n".join(call.args[0] for call in send_text.call_args_list)
+        self.assertIn("before image", rendered)
+        self.assertIn("after image", rendered)
+        self.assertIn("点此阅读原文", rendered)
+
     def test_published_time_is_shown_in_beijing_time(self):
         self.assertEqual(
             _format_published_at("Tue, 8 Sep 2026 09:13:00 GMT"),
@@ -136,9 +166,16 @@ Thursday - 2026-09-10
 </div>
 """
         article = parse_article_html(raw_html, item)
-        self.assertEqual([block.kind for block in article.blocks], ["text", "schedule"])
+        self.assertEqual(
+            [block.kind for block in article.blocks],
+            ["text", "image", "schedule"],
+        )
         self.assertEqual(article.blocks[0].text, "First paragraph with important words.")
-        match = article.blocks[1].matches[0]
+        self.assertEqual(
+            article.blocks[1].url,
+            "https://img-cdn.hltv.org/gallerypicture/editorial.jpg",
+        )
+        match = article.blocks[2].matches[0]
         self.assertEqual((match.team1, match.team2), ("Sharks", "Inner Circle"))
         self.assertEqual(match.event, "Test Event")
         self.assertEqual(match.start_at, "2026-06-27T13:50:00Z")
