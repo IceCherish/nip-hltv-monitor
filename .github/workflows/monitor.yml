@@ -1,0 +1,68 @@
+name: NIP 情报监控
+
+on:
+  schedule:
+    - cron: "*/6 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_notification:
+        description: "只测试通知，不读取 HLTV"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nip-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 读取项目
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 检查更新
+        env:
+          NEWS_MODE: ${{ vars.NEWS_MODE || 'all' }}
+          REMINDER_MINUTES: ${{ vars.REMINDER_MINUTES || '30' }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ vars.NTFY_SERVER || 'https://ntfy.sh' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          SMTP_USE_SSL: ${{ secrets.SMTP_USE_SSL }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: |
+          if [ "${{ inputs.test_notification }}" = "true" ]; then
+            python monitor.py --test-notification
+          else
+            python monitor.py
+          fi
+
+      - name: 保存去重记录
+        if: ${{ success() && inputs.test_notification != true }}
+        run: |
+          if git diff --quiet -- data/state.json; then
+            echo "没有状态变化"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/state.json
+          git commit -m "chore: update monitor state [skip ci]"
+          git push
+
