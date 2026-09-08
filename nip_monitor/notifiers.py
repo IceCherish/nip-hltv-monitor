@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-import base64
+import hashlib
+import hmac
 import json
 import os
 import smtplib
 import ssl
 import time
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
@@ -36,33 +38,24 @@ class OneBotNotifier(Notifier):
         self._send_text(f"{title}\n\n{message}")
 
     def send_article(self, label: str, article: Article) -> None:
-        # Download every editorial image before the first QQ message. If the
-        # network is temporarily unavailable, the whole article can retry next
-        # round without having already sent half of it.
-        prepared_images = {
-            block.url: self._download_image(block.url, article.original_url)
-            for block in article.blocks
-            if block.kind == "image"
-        }
         header = f"{label}\n\n{article.title}"
         if article.published_at:
             header += f"\n发布时间：{article.published_at}"
         header += "\n━━━━━━━━━━━━"
         pending = header
+        text_count = 0
 
         for block in article.blocks:
             if block.kind == "text":
+                if text_count >= 10:
+                    continue
+                text_count += 1
                 addition = f"\n\n{block.text}"
                 if len(pending) + len(addition) > 2800:
                     self._send_text(pending)
                     pending = block.text
                 else:
                     pending += addition
-            elif block.kind == "image":
-                if pending.strip():
-                    self._send_text(pending)
-                    pending = ""
-                self._send_image(prepared_images[block.url])
             elif block.kind == "schedule":
                 addition = "\n\n" + _format_article_schedule(block)
                 if len(pending) + len(addition) > 2800:
@@ -71,7 +64,7 @@ class OneBotNotifier(Notifier):
                 else:
                     pending += addition
 
-        footer = f"\n\n🔗 原文：{article.original_url}"
+        footer = f"\n\n🔗点此阅读原文：{article.original_url}"
         if len(pending) + len(footer) > 2800:
             if pending.strip():
                 self._send_text(pending)
@@ -84,40 +77,6 @@ class OneBotNotifier(Notifier):
     def _send_text(self, text: str) -> None:
         for start in range(0, len(text), 3000):
             self._post_message([{"type": "text", "data": {"text": text[start:start + 3000]}}])
-
-    def _download_image(self, image_url: str, referer: str = "https://www.hltv.org/") -> str:
-        last_error: Exception | None = None
-        for attempt in range(1, 4):
-            request = Request(
-                image_url,
-                headers={
-                    "User-Agent": (
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 Chrome/140.0 Safari/537.36"
-                    ),
-                    "Referer": referer,
-                    "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-                },
-            )
-            try:
-                with urlopen(request, timeout=45) as response:
-                    content_type = response.headers.get_content_type()
-                    data = response.read(8 * 1024 * 1024 + 1)
-                if len(data) > 8 * 1024 * 1024:
-                    raise NotificationError("正文图片超过 8 MB，已拒绝发送")
-                if not content_type.startswith("image/"):
-                    raise NotificationError(f"正文图片类型异常：{content_type}")
-                return base64.b64encode(data).decode("ascii")
-            except Exception as exc:
-                last_error = exc
-                if attempt < 3:
-                    time.sleep(2 ** (attempt - 1))
-        raise NotificationError(f"下载正文图片失败：{last_error}") from last_error
-
-    def _send_image(self, encoded: str) -> None:
-        self._post_message(
-            [{"type": "image", "data": {"file": f"base64://{encoded}"}}]
-        )
 
     def _post_message(self, message: list[dict[str, object]]) -> None:
         payload = json.dumps(
@@ -142,6 +101,42 @@ class OneBotNotifier(Notifier):
             raise
         except Exception as exc:
             raise NotificationError(f"连接 NapCat/OneBot 失败：{exc}") from exc
+
+
+@dataclass
+class RelayNotifier(Notifier):
+    url: str
+    secret: str
+    name = "国内 QQ 中继"
+
+    def send(self, title: str, message: str) -> None:
+        body = json.dumps(
+            {"title": title, "message": message},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        timestamp = str(int(time.time()))
+        nonce = uuid.uuid4().hex
+        signed = timestamp.encode() + b"\n" + nonce.encode() + b"\n" + body
+        signature = hmac.new(
+            self.secret.encode("utf-8"), signed, hashlib.sha256
+        ).hexdigest()
+        request = Request(
+            self.url,
+            data=body,
+            method="POST",
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "X-Relay-Timestamp": timestamp,
+                "X-Relay-Nonce": nonce,
+                "X-Relay-Signature": signature,
+            },
+        )
+        try:
+            with urlopen(request, timeout=60) as response:
+                response.read()
+        except Exception as exc:
+            raise NotificationError(f"发送到国内中继失败：{exc}") from exc
 
 
 @dataclass
@@ -223,6 +218,11 @@ def configured_notifiers() -> list[Notifier]:
     if topic := os.getenv("NTFY_TOPIC", "").strip():
         result.append(NtfyNotifier(topic=topic, server=os.getenv("NTFY_SERVER", "https://ntfy.sh")))
 
+    relay_url = os.getenv("RELAY_URL", "").strip()
+    relay_secret = os.getenv("RELAY_SECRET", "").strip()
+    if relay_url and relay_secret:
+        result.append(RelayNotifier(url=relay_url, secret=relay_secret))
+
     telegram_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     telegram_chat = os.getenv("TELEGRAM_CHAT_ID", "").strip()
     if telegram_token and telegram_chat:
@@ -276,33 +276,39 @@ def deliver_article(label: str, article: Article, notifiers: list[Notifier]) -> 
 
 
 def _format_article_schedule(block: ArticleBlock) -> str:
-    lines = ["🎮【文中赛程】"]
-    last_event = ""
-    shanghai = timezone(timedelta(hours=8), name="Asia/Shanghai")
+    groups: dict[str, list] = {}
     for match in block.matches:
-        if match.event and match.event != last_event:
-            lines.append(f"赛事：{match.event}")
-            last_event = match.event
-        if match.start_at:
-            local = datetime.fromisoformat(match.start_at.replace("Z", "+00:00")).astimezone(shanghai)
-            lines.append(f"⏰ 北京时间 {local:%Y-%m-%d %H:%M}")
-        lines.append(f"⚔️ {match.team1} vs {match.team2}")
-        if match.url:
-            lines.append(match.url)
-        lines.append("")
-    return "\n".join(lines).rstrip()
+        groups.setdefault(match.event or "待定", []).append(match)
+    sections: list[str] = []
+    shanghai = timezone(timedelta(hours=8), name="Asia/Shanghai")
+    for event, matches in groups.items():
+        lines = [f"🎮 赛事: {event}"]
+        for match in matches:
+            when = ""
+            if match.start_at:
+                local = datetime.fromisoformat(
+                    match.start_at.replace("Z", "+00:00")
+                ).astimezone(shanghai)
+                when = f"{local:%d/%m/%Y %H:%M} "
+            lines.append(f"\n⚔️ {when}{match.team1} vs {match.team2}")
+        sections.append("\n".join(lines))
+    return "\n\n".join(sections)
 
 
 def _article_as_text(article: Article) -> str:
     parts = [article.title]
     if article.published_at:
         parts.append(f"发布时间：{article.published_at}")
+    text_count = 0
     for block in article.blocks:
         if block.kind == "text":
+            if text_count >= 10:
+                continue
+            text_count += 1
             parts.append(block.text)
         elif block.kind == "schedule":
             parts.append(_format_article_schedule(block))
-    parts.append(f"原文：{article.original_url}")
+    parts.append(f"🔗点此阅读原文：{article.original_url}")
     return "\n\n".join(parts)
 
 

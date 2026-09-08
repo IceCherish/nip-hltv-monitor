@@ -7,13 +7,14 @@ from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .models import Match, NewsItem, Transfer
+from .models import Match, NewsItem, Result, Transfer
 
 HLTV_BASE = "https://www.hltv.org"
 HLTV_NEWS_RSS = f"{HLTV_BASE}/rss/news"
 NIP_TEAM_URL = f"{HLTV_BASE}/team/4411/ninjas-in-pyjamas"
 HLTV_MATCHES_URL = f"{HLTV_BASE}/matches"
 HLTV_TRANSFERS_URL = f"{HLTV_BASE}/transfers"
+HLTV_RESULTS_URL = f"{HLTV_BASE}/results?team=4411"
 READER_BASE = "https://r.jina.ai/"
 
 
@@ -241,6 +242,55 @@ def parse_transfers(markdown: str) -> list[Transfer]:
     return transfers
 
 
+def parse_results(markdown: str) -> list[Result]:
+    row_pattern = re.compile(
+        r"^\[(?P<label>Ninjas in Pyjamas.+?)\]\("
+        r"(?P<url>https://www\.hltv\.org/matches/(?P<id>\d+)/[^)]+)\)\s*$",
+        re.MULTILINE,
+    )
+    score_pattern = re.compile(r"(?P<nip>\d+)\s*-\s*(?P<opponent>\d+)")
+    format_pattern = re.compile(r"\s+(?:bo\d+|cch)\s*$", re.IGNORECASE)
+    results: list[Result] = []
+    seen: set[str] = set()
+
+    for row in row_pattern.finditer(markdown):
+        match_id = row.group("id")
+        if match_id in seen:
+            continue
+        label = row.group("label")
+        score = score_pattern.search(label)
+        if not score:
+            continue
+        remainder = label[score.end():]
+        image_names = re.findall(r"!\[Image \d+: ([^]]+)\]", remainder)
+        opponent = next(
+            (name.strip() for name in image_names if name.strip() != "Ninjas in Pyjamas"),
+            "",
+        )
+        plain_remainder = _strip_markdown_links(remainder)
+        plain_remainder = format_pattern.sub("", plain_remainder).strip()
+        if opponent and plain_remainder.startswith(opponent):
+            event = plain_remainder[len(opponent):].strip()
+        else:
+            event = plain_remainder
+        if not opponent or not event:
+            continue
+        seen.add(match_id)
+        results.append(
+            Result(
+                result_id=match_id,
+                opponent=opponent,
+                nip_score=int(score.group("nip")),
+                opponent_score=int(score.group("opponent")),
+                event=event,
+                url=row.group("url"),
+            )
+        )
+    if not results:
+        raise SourceError("没有从 HLTV 赛果页解析到 NIP 赛果，页面格式可能已变化")
+    return results
+
+
 def _strip_markdown_links(text: str) -> str:
     text = re.sub(r"!\[[^]]*\]\([^)]+\)", "", text)
     text = re.sub(r"\[\*\*(.*?)\*\*\]\([^)]+\)", r"\1", text)
@@ -252,7 +302,12 @@ def get_news() -> list[NewsItem]:
     return parse_news(fetch_via_reader(HLTV_NEWS_RSS))
 
 
-def get_nip_data() -> tuple[list[Match], list[Transfer]]:
+def get_nip_data() -> tuple[list[Match], list[Result], list[Transfer]]:
     matches_page = fetch_via_reader(HLTV_MATCHES_URL)
+    results_page = fetch_via_reader(HLTV_RESULTS_URL)
     transfers_page = fetch_via_reader(HLTV_TRANSFERS_URL)
-    return parse_matches_page(matches_page), parse_transfers(transfers_page)
+    return (
+        parse_matches_page(matches_page),
+        parse_results(results_page),
+        parse_transfers(transfers_page),
+    )

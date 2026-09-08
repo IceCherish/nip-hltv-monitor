@@ -1,0 +1,14 @@
+[Unit]
+Description=NIP and HLTV signed QQ relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/nip-hltv-monitor
+ExecStart=/usr/bin/python3 /opt/nip-hltv-monitor/relay_server.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

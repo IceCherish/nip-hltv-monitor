@@ -5,11 +5,15 @@ on:
     - cron: "*/6 * * * *"
   workflow_dispatch:
     inputs:
-      test_notification:
-        description: "只测试通知，不读取 HLTV"
-        required: false
-        type: boolean
-        default: false
+      mode:
+        description: "运行内容"
+        required: true
+        type: choice
+        default: monitor
+        options:
+          - monitor
+          - test_notification
+          - test_article
 
 permissions:
   contents: write
@@ -50,15 +54,17 @@ jobs:
           SMTP_FROM: ${{ secrets.SMTP_FROM }}
           SMTP_USE_SSL: ${{ secrets.SMTP_USE_SSL }}
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          RELAY_URL: ${{ secrets.RELAY_URL }}
+          RELAY_SECRET: ${{ secrets.RELAY_SECRET }}
         run: |
-          if [ "${{ inputs.test_notification }}" = "true" ]; then
-            python monitor.py --test-notification
-          else
-            python monitor.py
-          fi
+          case "${{ inputs.mode }}" in
+            test_notification) python monitor.py --test-notification ;;
+            test_article) python monitor.py --test-rich-article ;;
+            *) python monitor.py ;;
+          esac
 
       - name: 保存去重记录
-        if: ${{ success() && inputs.test_notification != true }}
+        if: ${{ success() && (github.event_name == 'schedule' || inputs.mode == 'monitor') }}
         run: |
           if git diff --quiet -- data/state.json; then
             echo "没有状态变化"

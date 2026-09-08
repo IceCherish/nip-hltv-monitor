@@ -96,12 +96,8 @@ class _ArticleHTMLParser(HTMLParser):
             self._text_parts = []
             return
 
-        if tag == "img":
-            src = html.unescape(attrs_map.get("src", ""))
-            if "gallerypicture" in src:
-                url = urljoin(HLTV_BASE, src)
-                if not any(block.kind == "image" and block.url == url for block in self.blocks):
-                    self.blocks.append(ArticleBlock(kind="image", url=url))
+        # Editorial images are intentionally ignored. The production relay is
+        # text-only so the QQ sender never depends on HLTV's image CDN.
 
     def handle_endtag(self, tag: str) -> None:
         if self._in_table:

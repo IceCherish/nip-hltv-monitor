@@ -172,8 +172,21 @@ def _chunks(text: str, limit: int = 3500) -> list[str]:
 
 def translate_article(article: Article) -> Article:
     translated_blocks = []
+    translated_events: dict[str, str] = {}
     for block in article.blocks:
-        translated_blocks.append(
-            replace(block, text=translate_text(block.text)) if block.kind == "text" else block
-        )
+        if block.kind == "text":
+            translated_blocks.append(replace(block, text=translate_text(block.text)))
+        elif block.kind == "schedule":
+            translated_matches = []
+            for match in block.matches:
+                if match.event not in translated_events:
+                    translated_events[match.event] = (
+                        translate_text(match.event) if match.event else ""
+                    )
+                translated_matches.append(
+                    replace(match, event=translated_events[match.event])
+                )
+            translated_blocks.append(replace(block, matches=tuple(translated_matches)))
+        else:
+            translated_blocks.append(block)
     return replace(article, title=translate_text(article.title), blocks=tuple(translated_blocks))

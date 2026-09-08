@@ -40,3 +40,12 @@ class Transfer:
     text: str
     date: str
 
+
+@dataclass(frozen=True)
+class Result:
+    result_id: str
+    opponent: str
+    nip_score: int
+    opponent_score: int
+    event: str
+    url: str = ""

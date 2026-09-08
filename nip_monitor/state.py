@@ -11,6 +11,7 @@ DEFAULT_STATE = {
     "matches": {},
     "transfer_ids": [],
     "sent_reminders": [],
+    "recent_result_ids": [],
     "updated_at": "",
 }
 
@@ -32,4 +33,3 @@ def save_state(path: Path, state: dict) -> None:
         json.dump(state, handle, ensure_ascii=False, indent=2, sort_keys=True)
         handle.write("\n")
     temporary.replace(path)
-
