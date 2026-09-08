@@ -37,6 +37,7 @@ $env:QQ_GROUP_ID="你的群号"
 $env:ONEBOT_HTTP_URL="http://127.0.0.1:3000"
 $env:ONEBOT_ACCESS_TOKEN="和 NapCat 一致的 Token"
 python monitor.py --test-notification
+python monitor.py --test-rich-article
 ```
 
 测试成功后常驻运行：

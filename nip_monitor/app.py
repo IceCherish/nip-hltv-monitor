@@ -152,13 +152,32 @@ def run_monitor(now: datetime | None = None) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="免费监控 HLTV 新闻和 NIP 赛程")
     parser.add_argument("--test-notification", action="store_true", help="只发送一条测试通知")
+    parser.add_argument(
+        "--test-rich-article",
+        action="store_true",
+        help="发送一篇含中文正文、图片和文中赛程的真实测试新闻",
+    )
     args = parser.parse_args(argv)
     try:
-        if args.test_notification:
+        if args.test_notification or args.test_rich_article:
             notifiers = configured_notifiers()
             if not notifiers:
                 print("没有配置通知渠道。请先按 README 添加一个免费通知渠道。")
                 return 2
+            if args.test_rich_article:
+                demo = NewsItem(
+                    news_id="45014",
+                    title="Super DraculaN semi-finals set",
+                    description="",
+                    url="https://www.hltv.org/news/45014/super-draculan-semi-finals-set",
+                    published_at="",
+                )
+                deliver_article(
+                    "🧪【HLTV 富媒体测试】",
+                    translate_article(get_article(demo)),
+                    notifiers,
+                )
+                return 0
             deliver("✅ NIP 监控测试", "如果你看到这条消息，通知配置成功。", notifiers)
             return 0
         return run_monitor()
