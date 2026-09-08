@@ -21,24 +21,36 @@ class SourceError(RuntimeError):
     """Raised when fresh monitoring data cannot be retrieved or parsed."""
 
 
-def fetch_via_reader(url: str, attempts: int = 3, timeout: int = 60) -> str:
+def fetch_via_reader(
+    url: str,
+    attempts: int = 3,
+    timeout: int = 60,
+    *,
+    response_format: str = "markdown",
+    selector: str = "",
+) -> str:
+    headers = {
+        "User-Agent": "nip-hltv-monitor/1.0 (personal, non-commercial monitor)",
+        "Accept": "text/plain",
+        "X-Respond-With": response_format,
+        "X-Cache-Tolerance": "300",
+        "X-Timeout": "45",
+    }
+    if selector:
+        headers["X-Target-Selector"] = selector
     request = Request(
         READER_BASE + url,
-        headers={
-            "User-Agent": "nip-hltv-monitor/1.0 (personal, non-commercial monitor)",
-            "Accept": "text/plain",
-            "X-Respond-With": "markdown",
-            "X-Cache-Tolerance": "300",
-            "X-Timeout": "45",
-        },
+        headers=headers,
     )
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
             with urlopen(request, timeout=timeout) as response:
                 text = response.read().decode("utf-8", errors="replace")
-            if "Markdown Content:" not in text:
+            if response_format == "markdown" and "Markdown Content:" not in text:
                 raise SourceError(f"阅读服务返回了无法识别的内容：{url}")
+            if not text.strip():
+                raise SourceError(f"阅读服务返回了空内容：{url}")
             return text
         except (HTTPError, URLError, TimeoutError, SourceError) as exc:
             last_error = exc

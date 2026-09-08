@@ -35,6 +35,10 @@ jobs:
         env:
           NEWS_MODE: ${{ vars.NEWS_MODE || 'all' }}
           REMINDER_MINUTES: ${{ vars.REMINDER_MINUTES || '30' }}
+          TRANSLATE_PROVIDER: ${{ vars.TRANSLATE_PROVIDER || 'auto' }}
+          TENCENT_SECRET_ID: ${{ secrets.TENCENT_SECRET_ID }}
+          TENCENT_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}
+          TENCENT_REGION: ${{ vars.TENCENT_REGION || 'ap-beijing' }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           NTFY_SERVER: ${{ vars.NTFY_SERVER || 'https://ntfy.sh' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -65,4 +69,3 @@ jobs:
           git add data/state.json
           git commit -m "chore: update monitor state [skip ci]"
           git push
-

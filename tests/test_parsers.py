@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import unittest
 
 from nip_monitor.app import _is_nip_news
+from nip_monitor.articles import parse_article_html
 from nip_monitor.models import Match, NewsItem
 from nip_monitor.sources import (
     parse_match_details,
@@ -70,6 +71,37 @@ Thursday - 2026-09-10
         self.assertEqual(items[0].opponent, "SINNERS")
         self.assertEqual(items[0].event, "PGL Masters Bucharest")
         self.assertEqual(items[0].start_at, "2026-09-09T14:00:00Z")
+
+    def test_parse_article_keeps_body_images_and_embedded_schedule(self):
+        item = NewsItem("45014", "Semi-finals set", "", "https://www.hltv.org/news/45014/test")
+        raw_html = """
+<div class="newstext-con">
+  <p>First paragraph with <strong>important</strong> words.</p>
+  <img src="https://img-cdn.hltv.org/gallerypicture/editorial.jpg">
+  <img src="https://img-cdn.hltv.org/teamlogo/not-editorial.png">
+  <table class="event-matches-table">
+    <tr class="event-header-cell"><th><a href="/events/1/test">Test Event</a></th></tr>
+    <tr class="team-row">
+      <td><span data-unix="1782568200000">27/06/2026</span></td>
+      <td>
+        <a class="team-name team-1">Sharks</a>
+        <span data-unix="1782568200000">15:50</span>
+        <a class="team-name team-2">Inner Circle</a>
+      </td>
+      <td><a href="/matches/2395397/test">Match</a></td>
+    </tr>
+  </table>
+</div>
+"""
+        article = parse_article_html(raw_html, item)
+        self.assertEqual([block.kind for block in article.blocks], ["text", "image", "schedule"])
+        self.assertEqual(article.blocks[0].text, "First paragraph with important words.")
+        self.assertEqual(article.blocks[1].url, "https://img-cdn.hltv.org/gallerypicture/editorial.jpg")
+        match = article.blocks[2].matches[0]
+        self.assertEqual((match.team1, match.team2), ("Sharks", "Inner Circle"))
+        self.assertEqual(match.event, "Test Event")
+        self.assertEqual(match.start_at, "2026-06-27T13:50:00Z")
+        self.assertEqual(match.url, "https://www.hltv.org/matches/2395397/test")
 
 
 if __name__ == "__main__":

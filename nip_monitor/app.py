@@ -5,10 +5,12 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from .articles import Article, get_article
 from .models import Match, NewsItem, Transfer
-from .notifiers import NotificationError, configured_notifiers, deliver
+from .notifiers import NotificationError, configured_notifiers, deliver, deliver_article
 from .sources import NIP_TEAM_URL, SourceError, get_news, get_nip_data
 from .state import load_state, save_state
+from .translator import TranslationError, translate_article
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "state.json"
@@ -28,13 +30,8 @@ def _format_time(match: Match) -> str:
     return local.strftime("北京时间 %Y-%m-%d %H:%M")
 
 
-def _news_message(item: NewsItem) -> tuple[str, str]:
-    label = "🥷 NIP 新闻" if _is_nip_news(item) else "📰 HLTV 新闻"
-    body = item.title
-    if item.description:
-        body += f"\n{item.description}"
-    body += f"\n{item.url}"
-    return label, body
+def _news_label(item: NewsItem) -> str:
+    return "🥷【NIP 新闻】" if _is_nip_news(item) else "📰【HLTV 新闻】"
 
 
 def _match_message(match: Match, changed: bool = False) -> tuple[str, str]:
@@ -64,7 +61,12 @@ def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
 
 
 def _startup_message(matches: list[Match], reminder_minutes: int) -> tuple[str, str]:
-    lines = ["监控已经启动。", "", "当前功能：HLTV 新闻、NIP 赛程/动态、赛前提醒。", f"提醒时间：开赛前约 {reminder_minutes} 分钟。"]
+    lines = [
+        "监控已经启动。",
+        "",
+        "当前功能：HLTV 新闻中文全文/正文配图/文中赛程、NIP 赛程/转会动态、赛前提醒。",
+        f"提醒时间：开赛前约 {reminder_minutes} 分钟。",
+    ]
     if matches:
         lines.extend(["", "最近一场：", f"NIP vs {matches[0].opponent}", _format_time(matches[0]), matches[0].url])
     else:
@@ -87,6 +89,7 @@ def run_monitor(now: datetime | None = None) -> int:
     matches, transfers = get_nip_data()
     state = load_state(STATE_PATH)
     notifications: list[tuple[str, str]] = []
+    article_notifications: list[tuple[str, Article]] = []
 
     if not state["initialized"]:
         notifications.append(_startup_message(matches, reminder_minutes))
@@ -95,7 +98,10 @@ def run_monitor(now: datetime | None = None) -> int:
         new_news = [item for item in reversed(news) if item.news_id not in known_news]
         if news_mode == "nip":
             new_news = [item for item in new_news if _is_nip_news(item)]
-        notifications.extend(_news_message(item) for item in new_news)
+        for item in new_news:
+            article_notifications.append(
+                (_news_label(item), translate_article(get_article(item)))
+            )
 
         known_matches = state["matches"]
         for match in matches:
@@ -120,6 +126,8 @@ def run_monitor(now: datetime | None = None) -> int:
             notifications.append(_reminder_message(match, minutes))
             sent_reminders.add(match.match_id)
 
+    for label, article in article_notifications:
+        deliver_article(label, article, notifiers)
     for title, message in notifications:
         deliver(title, message, notifiers)
 
@@ -136,7 +144,8 @@ def run_monitor(now: datetime | None = None) -> int:
         }
     )
     save_state(STATE_PATH, state)
-    print(f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，阵容动态 {len(transfers)} 条，新消息 {len(notifications)} 条。")
+    message_count = len(notifications) + len(article_notifications)
+    print(f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，阵容动态 {len(transfers)} 条，新消息 {message_count} 条。")
     return 0
 
 
@@ -153,6 +162,6 @@ def main(argv: list[str] | None = None) -> int:
             deliver("✅ NIP 监控测试", "如果你看到这条消息，通知配置成功。", notifiers)
             return 0
         return run_monitor()
-    except (SourceError, NotificationError, ValueError) as exc:
+    except (SourceError, TranslationError, NotificationError, ValueError) as exc:
         print(f"运行失败：{exc}")
         return 1
