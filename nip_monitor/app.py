@@ -42,7 +42,7 @@ def _format_time(match: Match) -> str:
     if not match.start_datetime:
         return "开赛时间待定"
     local = match.start_datetime.astimezone(SHANGHAI)
-    return local.strftime("北京时间 %Y-%m-%d %H:%M")
+    return local.strftime("%Y-%m-%d %H:%M")
 
 
 def _news_label(item: NewsItem) -> str:
@@ -99,7 +99,7 @@ def _schedule_overview_message(
                     [
                         f"⚔️ 对阵: NIP vs {match.opponent}",
                         f"⏰ 时间: {display_time}",
-                        f"⏳ 距离开赛还有 {_distance_to_match(match, now)}",
+                        f"⏳ 距离 {_distance_to_match(match, now)}",
                     ]
                 )
             sections.append("\n".join(lines))

@@ -82,7 +82,7 @@ class ParserTests(unittest.TestCase):
     def test_published_time_is_shown_in_beijing_time(self):
         self.assertEqual(
             _format_published_at("Tue, 8 Sep 2026 09:13:00 GMT"),
-            "2026年9月8日 17:13（北京时间）",
+            "2026年9月8日 17:13",
         )
 
     def test_parse_news(self):
@@ -294,7 +294,7 @@ Thursday - 2026-09-10
         self.assertEqual(title, "🥷 【NIP 近期赛程预告】")
         self.assertEqual(rendered.count("🎮 赛事: XSE Pro League 2026"), 1)
         self.assertIn("⏰ 时间: 7/1 15:00", rendered)
-        self.assertIn("⏳ 距离开赛还有 3 天 4 小时", rendered)
+        self.assertIn("⏳ 距离 3 天 4 小时", rendered)
         self.assertIn("🏆 【往期赛事回顾】", rendered)
         self.assertIn("📊 赛果: NIP 2 : 0 HEROIC", rendered)
 

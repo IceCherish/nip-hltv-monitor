@@ -39,7 +39,7 @@ def _format_published_at(value: str) -> str:
     if published.tzinfo is None:
         published = published.replace(tzinfo=timezone.utc)
     local = published.astimezone(SHANGHAI)
-    return f"{local.year}年{local.month}月{local.day}日 {local:%H:%M}（北京时间）"
+    return f"{local.year}年{local.month}月{local.day}日 {local:%H:%M}"
 
 
 def _download_image(url: str) -> tuple[bytes, str]:
