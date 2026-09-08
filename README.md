@@ -67,8 +67,8 @@ python run_forever.py
 
 默认 `TRANSLATE_PROVIDER=auto`：
 
-- 配置了 `TENCENT_SECRET_ID` 和 `TENCENT_SECRET_KEY` 时使用腾讯云机器翻译。
-- 没配置时使用 Google 的免费非官方接口，不需要密钥，但没有稳定性承诺。
+- 优先使用 Google 的免费非官方接口，不需要密钥，但没有稳定性承诺。
+- 同时配置了 `TENCENT_SECRET_ID` 和 `TENCENT_SECRET_KEY` 时，Google 重试失败后会自动切换到腾讯云机器翻译。
 
 可显式设置 `TRANSLATE_PROVIDER=google` 或 `tencent`。腾讯云方案还可设置 `TENCENT_REGION`，默认 `ap-beijing`。密钥只能放环境变量或 GitHub Secrets，绝不能提交进公开仓库。
 

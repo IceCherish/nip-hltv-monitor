@@ -26,27 +26,38 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
     if not text.strip() or os.getenv("TRANSLATE_ENABLED", "true").lower() in {"0", "false", "no"}:
         return text
     provider = os.getenv("TRANSLATE_PROVIDER", "auto").strip().lower()
-    if provider == "auto":
-        provider = "tencent" if _has_tencent_credentials() else "google"
-    if provider not in {"google", "tencent"}:
+    if provider not in {"auto", "google", "tencent"}:
         raise TranslationError("TRANSLATE_PROVIDER 只能是 auto、google 或 tencent")
+    providers = (
+        ["google", "tencent"]
+        if provider == "auto" and _has_tencent_credentials()
+        else ["google"]
+        if provider == "auto"
+        else [provider]
+    )
     translated: list[str] = []
     for chunk in _chunks(text):
-        last_error: Exception | None = None
-        for attempt in range(1, attempts + 1):
-            try:
-                translated.append(
-                    _translate_tencent(chunk, timeout)
-                    if provider == "tencent"
-                    else _translate_google(chunk, timeout)
-                )
-                break
-            except (HTTPError, URLError, TimeoutError, ValueError, TypeError, IndexError) as exc:
-                last_error = exc
-                if attempt < attempts:
-                    time.sleep(2 ** (attempt - 1))
+        errors: list[str] = []
+        for current_provider in providers:
+            last_error: Exception | None = None
+            for attempt in range(1, attempts + 1):
+                try:
+                    translated.append(
+                        _translate_tencent(chunk, timeout)
+                        if current_provider == "tencent"
+                        else _translate_google(chunk, timeout)
+                    )
+                    break
+                except (HTTPError, URLError, TimeoutError, ValueError, TypeError, IndexError) as exc:
+                    last_error = exc
+                    if attempt < attempts:
+                        time.sleep(2 ** (attempt - 1))
+            else:
+                errors.append(f"{current_provider}: {last_error}")
+                continue
+            break
         else:
-            raise TranslationError(f"翻译失败（已重试 {attempts} 次）：{last_error}")
+            raise TranslationError("All translation providers failed: " + "; ".join(errors))
     return "".join(translated).strip()
 
 
