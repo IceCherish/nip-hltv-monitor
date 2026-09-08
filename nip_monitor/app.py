@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .articles import Article, get_article
+from .articles import get_article
 from .models import Match, NewsItem, Result, Transfer
 from .notifiers import NotificationError, configured_notifiers, deliver, deliver_article
 from .sources import NIP_TEAM_URL, SourceError, get_news, get_nip_data
@@ -151,7 +151,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     recent_results = _latest_event_results(results)
     state = load_state(STATE_PATH)
     notifications: list[tuple[str, str]] = []
-    article_notifications: list[tuple[str, Article]] = []
+    news_to_send: list[NewsItem] = []
     local_now = now.astimezone(SHANGHAI)
     today = local_now.date().isoformat()
     daily_schedule_due = (
@@ -161,17 +161,12 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     schedule_needed = force_schedule or daily_schedule_due or not state["initialized"]
 
     if not state["initialized"]:
-        for item in reversed(news[:5]):
-            article_notifications.append(
-                (_news_label(item), translate_article(get_article(item)))
-            )
+        news_to_send = list(reversed(news[:2]))
     else:
         known_news = set(state["news_ids"])
-        new_news = [item for item in reversed(news) if item.news_id not in known_news]
-        for item in new_news:
-            article_notifications.append(
-                (_news_label(item), translate_article(get_article(item)))
-            )
+        news_to_send = [
+            item for item in reversed(news) if item.news_id not in known_news
+        ]
 
         known_transfers = set(state["transfer_ids"])
         notifications.extend(
@@ -193,15 +188,28 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
 
     for title, message in notifications:
         deliver(title, message, notifiers)
-    for label, article in article_notifications:
-        deliver_article(label, article, notifiers)
+
+    failed_news_ids: set[str] = set()
+    sent_article_count = 0
+    for item in news_to_send:
+        try:
+            article = translate_article(get_article(item))
+        except (SourceError, TranslationError) as exc:
+            failed_news_ids.add(item.news_id)
+            print(f"新闻 {item.news_id} 本轮暂缓，下次检查重试：{exc}")
+            continue
+        deliver_article(_news_label(item), article, notifiers)
+        sent_article_count += 1
 
     last_daily_schedule_date = state.get("last_daily_schedule_date", "")
     if schedule_needed:
         last_daily_schedule_date = today
     next_values = {
         "initialized": True,
-        "news_ids": [item.news_id for item in news[:100]],
+        "news_ids": [
+            item.news_id for item in news[:100]
+            if item.news_id not in failed_news_ids
+        ],
         "matches": {
             item.match_id: {**item.to_dict(), "signature": item.signature()} for item in matches
         },
@@ -214,7 +222,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         next_values["updated_at"] = now.isoformat().replace("+00:00", "Z")
     state.update(next_values)
     save_state(STATE_PATH, state)
-    message_count = len(notifications) + len(article_notifications)
+    message_count = len(notifications) + sent_article_count
     print(f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，最近赛事赛果 {len(recent_results)} 场，阵容动态 {len(transfers)} 条，新消息 {message_count} 条。")
     return 0
 
@@ -226,7 +234,7 @@ def reset_news_state() -> None:
     state["last_daily_schedule_date"] = ""
     state["updated_at"] = ""
     save_state(STATE_PATH, state)
-    print("已清除首次运行和新闻去重记录；下次 monitor 会重新发送赛程和最新 5 条新闻。")
+    print("已清除首次运行和新闻去重记录；下次 monitor 会重新发送赛程和最新 2 条新闻。")
 
 
 def main(argv: list[str] | None = None) -> int:

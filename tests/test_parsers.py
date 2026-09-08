@@ -22,6 +22,7 @@ from nip_monitor.sources import (
     parse_transfers,
     parse_upcoming_match_links,
 )
+from nip_monitor.translator import translate_article
 
 
 class ParserTests(unittest.TestCase):
@@ -220,6 +221,36 @@ Thursday - 2026-09-10
         self.assertNotIn("\n\n⚔️", rendered)
         self.assertIn("⚔️ 28/06/2026 21:30 Sharks vs Echo", rendered)
         self.assertIn("⚔️ 29/06/2026 01:00 Inner Circle vs Acend", rendered)
+
+    def test_article_translation_batches_title_text_and_event(self):
+        article = Article(
+            title="Title",
+            original_url="https://www.hltv.org/news/1/test",
+            published_at="",
+            blocks=(
+                ArticleBlock(kind="text", text="First paragraph"),
+                ArticleBlock(
+                    kind="schedule",
+                    matches=(ArticleMatch("NIP", "FaZe", event="Big Event"),),
+                ),
+                ArticleBlock(kind="text", text="Second paragraph"),
+            ),
+        )
+
+        def fake_translate(value):
+            return (value.replace("Title", "标题")
+                         .replace("First paragraph", "第一段")
+                         .replace("Second paragraph", "第二段")
+                         .replace("Big Event", "大型赛事"))
+
+        with patch("nip_monitor.translator.translate_text", side_effect=fake_translate) as translate:
+            translated = translate_article(article)
+
+        self.assertEqual(translate.call_count, 1)
+        self.assertEqual(translated.title, "标题")
+        self.assertEqual(translated.blocks[0].text, "第一段")
+        self.assertEqual(translated.blocks[1].matches[0].event, "大型赛事")
+        self.assertEqual(translated.blocks[2].text, "第二段")
 
     def test_schedule_overview_groups_events_and_shows_latest_event_results(self):
         now = datetime(2026, 6, 28, 3, 0, tzinfo=timezone.utc)

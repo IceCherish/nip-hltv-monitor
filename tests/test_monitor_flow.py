@@ -65,7 +65,7 @@ class MonitorFlowTests(unittest.TestCase):
             patch.object(app, "deliver_article"),
         )
 
-    def test_first_run_sends_latest_five_then_deduplicates(self):
+    def test_first_run_sends_latest_two_then_deduplicates(self):
         patches = self._patch_monitor()
         with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
             app.run_monitor(datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc))
@@ -73,7 +73,7 @@ class MonitorFlowTests(unittest.TestCase):
             self.assertEqual(deliver.call_count, 1)
             self.assertEqual(deliver.call_args.args[0], "🥷 【NIP 近期赛程预告】")
             sent_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
-            self.assertEqual(sent_ids, ["3", "4", "5", "6", "7"])
+            self.assertEqual(sent_ids, ["6", "7"])
 
             deliver.reset_mock()
             deliver_article.reset_mock()
@@ -81,6 +81,30 @@ class MonitorFlowTests(unittest.TestCase):
 
             deliver.assert_not_called()
             deliver_article.assert_not_called()
+
+    def test_translation_failure_does_not_block_schedule_and_is_retried(self):
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5] as translate, patches[6] as deliver, patches[7] as deliver_article:
+            translate.side_effect = lambda item: (
+                (_ for _ in ()).throw(app.TranslationError("HTTP 429"))
+                if item.news_id == "6"
+                else item
+            )
+            app.run_monitor(datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc))
+
+            self.assertEqual(deliver.call_count, 1)
+            sent_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
+            self.assertEqual(sent_ids, ["7"])
+            self.assertNotIn("6", app.load_state(self.state_path)["news_ids"])
+
+            deliver.reset_mock()
+            deliver_article.reset_mock()
+            translate.side_effect = lambda item: item
+            app.run_monitor(datetime(2026, 9, 8, 1, 6, tzinfo=timezone.utc))
+
+            deliver.assert_not_called()
+            retried_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
+            self.assertEqual(retried_ids, ["6"])
 
     def test_daily_schedule_is_sent_once_after_ten_beijing_time(self):
         patches = self._patch_monitor()

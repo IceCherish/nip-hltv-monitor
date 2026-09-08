@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import time
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -171,22 +172,64 @@ def _chunks(text: str, limit: int = 3500) -> list[str]:
 
 
 def translate_article(article: Article) -> Article:
-    translated_blocks = []
-    translated_events: dict[str, str] = {}
-    for block in article.blocks:
+    segment_keys: list[tuple[str, object]] = [("title", 0)]
+    segment_values = [article.title]
+    text_count = 0
+    for index, block in enumerate(article.blocks):
         if block.kind == "text":
-            translated_blocks.append(replace(block, text=translate_text(block.text)))
+            if text_count < 10:
+                segment_keys.append(("text", index))
+                segment_values.append(block.text)
+            text_count += 1
+        elif block.kind == "schedule":
+            for match in block.matches:
+                key = ("event", match.event)
+                if match.event and key not in segment_keys:
+                    segment_keys.append(key)
+                    segment_values.append(match.event)
+
+    translated_values = _translate_segments(segment_values)
+    translated = dict(zip(segment_keys, translated_values))
+    translated_blocks = []
+    for index, block in enumerate(article.blocks):
+        if block.kind == "text":
+            translated_blocks.append(
+                replace(block, text=translated.get(("text", index), block.text))
+            )
         elif block.kind == "schedule":
             translated_matches = []
             for match in block.matches:
-                if match.event not in translated_events:
-                    translated_events[match.event] = (
-                        translate_text(match.event) if match.event else ""
-                    )
                 translated_matches.append(
-                    replace(match, event=translated_events[match.event])
+                    replace(
+                        match,
+                        event=translated.get(("event", match.event), match.event),
+                    )
                 )
             translated_blocks.append(replace(block, matches=tuple(translated_matches)))
         else:
             translated_blocks.append(block)
-    return replace(article, title=translate_text(article.title), blocks=tuple(translated_blocks))
+    return replace(
+        article,
+        title=translated[("title", 0)],
+        blocks=tuple(translated_blocks),
+    )
+
+
+_SEGMENT_MARKER = re.compile(r"\[\[NIPHLTVSEGMENT(\d{4})\]\]")
+
+
+def _translate_segments(values: list[str]) -> list[str]:
+    if len(values) == 1:
+        return [translate_text(values[0])]
+    payload = "".join(
+        f"\n\n[[NIPHLTVSEGMENT{index:04d}]]\n\n{value}"
+        for index, value in enumerate(values)
+    )
+    translated = translate_text(payload)
+    markers = list(_SEGMENT_MARKER.finditer(translated))
+    if [int(marker.group(1)) for marker in markers] != list(range(len(values))):
+        raise TranslationError("批量翻译返回的分段格式无法识别，已留到下次重试")
+    return [
+        translated[marker.end(): markers[index + 1].start() if index + 1 < len(markers) else None].strip()
+        for index, marker in enumerate(markers)
+    ]
