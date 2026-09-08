@@ -1,6 +1,6 @@
 {
-  "initialized": false,
-  "last_daily_schedule_date": "",
+  "initialized": true,
+  "last_daily_schedule_date": "2026-09-08",
   "matches": {
     "2397722": {
       "event": "PGL Masters Bucharest 2026 Europe Closed Qualifier",
@@ -9,9 +9,28 @@
       "signature": "SINNERS|PGL Masters Bucharest 2026 Europe Closed Qualifier|2026-09-09T14:00:00Z",
       "start_at": "2026-09-09T14:00:00Z",
       "url": "https://www.hltv.org/matches/2397722/ninjas-in-pyjamas-vs-sinners-pgl-masters-bucharest-2026-europe-closed-qualifier"
+    },
+    "2397862": {
+      "event": "Thunderpick World Championship 2026 Closed Qualifier",
+      "match_id": "2397862",
+      "opponent": "FOKUS",
+      "signature": "FOKUS|Thunderpick World Championship 2026 Closed Qualifier|2026-09-09T17:00:00Z",
+      "start_at": "2026-09-09T17:00:00Z",
+      "url": "https://www.hltv.org/matches/2397862/ninjas-in-pyjamas-vs-fokus-thunderpick-world-championship-2026-closed-qualifier"
     }
   },
-  "news_ids": [],
+  "news_ids": [
+    "45477",
+    "45481",
+    "45480",
+    "45479",
+    "45455",
+    "45478",
+    "45474",
+    "45475",
+    "45476",
+    "45473"
+  ],
   "recent_result_ids": [
     "2397424",
     "2397422",
@@ -21,6 +40,6 @@
   "transfer_ids": [
     "14006672c608ee51"
   ],
-  "updated_at": "",
+  "updated_at": "2026-09-08T14:45:21.957110Z",
   "version": 1
 }
