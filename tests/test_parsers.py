@@ -7,6 +7,7 @@ from nip_monitor.models import Match, NewsItem, Result
 from nip_monitor.notifiers import _article_as_text, _format_article_schedule
 from nip_monitor.sources import (
     parse_match_details,
+    parse_matches_html,
     parse_matches_page,
     parse_news,
     parse_results,
@@ -79,6 +80,26 @@ Wednesday - 2026-09-09
 Thursday - 2026-09-10
 """
         items = parse_matches_page(text)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].opponent, "SINNERS")
+        self.assertEqual(items[0].event, "PGL Masters Bucharest")
+        self.assertEqual(items[0].start_at, "2026-09-09T14:00:00Z")
+
+    def test_parse_current_matches_html(self):
+        text = """
+<div class="match-wrapper" data-match-id="111" team1="1" team2="2" live="false">
+  <div class="match-event" data-event-headline="Other Event"></div>
+</div>
+<div class="match-wrapper" data-match-id="2397722" team1="4411" team2="10577" live="false">
+  <a href="/matches/2397722/ninjas-in-pyjamas-vs-sinners-event">
+    <div class="match-event" data-event-headline="PGL Masters Bucharest"></div>
+  </a>
+  <div class="match-time" data-unix="1788962400000">14:00</div>
+  <div class="match-teamname">Ninjas in Pyjamas</div>
+  <div class="match-teamname">SINNERS</div>
+</div>
+"""
+        items = parse_matches_html(text)
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0].opponent, "SINNERS")
         self.assertEqual(items[0].event, "PGL Masters Bucharest")

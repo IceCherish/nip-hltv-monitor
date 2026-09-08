@@ -4,6 +4,7 @@ import hashlib
 import re
 import time
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -203,6 +204,108 @@ def parse_matches_page(markdown: str) -> list[Match]:
     return found_matches
 
 
+class _MatchesHTMLParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.matches: list[Match] = []
+        self.saw_match_wrapper = False
+        self._current: dict[str, object] | None = None
+        self._div_depth = 0
+        self._team_capture_depth = 0
+        self._team_text: list[str] = []
+        self._seen_ids: set[str] = set()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {key: value or "" for key, value in attrs}
+        classes = set(values.get("class", "").split())
+
+        if tag == "div" and "match-wrapper" in classes:
+            self.saw_match_wrapper = True
+            if self._current is None and "4411" in {values.get("team1"), values.get("team2")}:
+                self._current = {
+                    "match_id": values.get("data-match-id", ""),
+                    "url": "",
+                    "event": "",
+                    "timestamp": "",
+                    "teams": [],
+                    "live": values.get("live", "false").lower() == "true",
+                }
+                self._div_depth = 1
+                return
+
+        if self._current is None:
+            return
+
+        if tag == "div":
+            self._div_depth += 1
+            if "match-event" in classes:
+                self._current["event"] = values.get("data-event-headline", "")
+            elif "match-time" in classes:
+                self._current["timestamp"] = values.get("data-unix", "")
+            elif "match-teamname" in classes:
+                self._team_capture_depth = self._div_depth
+                self._team_text = []
+        elif tag == "a" and not self._current["url"]:
+            href = values.get("href", "")
+            if href.startswith("/matches/"):
+                self._current["url"] = HLTV_BASE + href
+
+    def handle_data(self, data: str) -> None:
+        if self._current is not None and self._team_capture_depth:
+            self._team_text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._current is None or tag != "div":
+            return
+        if self._team_capture_depth == self._div_depth:
+            team = " ".join("".join(self._team_text).split())
+            if team:
+                teams = self._current["teams"]
+                assert isinstance(teams, list)
+                teams.append(team)
+            self._team_capture_depth = 0
+            self._team_text = []
+        self._div_depth -= 1
+        if self._div_depth == 0:
+            self._finish_match()
+
+    def _finish_match(self) -> None:
+        assert self._current is not None
+        current = self._current
+        self._current = None
+        match_id = str(current["match_id"])
+        if not match_id or match_id in self._seen_ids or current["live"]:
+            return
+        teams = current["teams"]
+        assert isinstance(teams, list)
+        opponent = next((team for team in teams if team != "Ninjas in Pyjamas"), "")
+        try:
+            starts = datetime.fromtimestamp(int(str(current["timestamp"])) / 1000, timezone.utc)
+        except (TypeError, ValueError, OSError):
+            return
+        url = str(current["url"])
+        if not opponent or not url:
+            return
+        self._seen_ids.add(match_id)
+        self.matches.append(
+            Match(
+                match_id=match_id,
+                opponent=opponent,
+                url=url,
+                event=str(current["event"]).strip() or "待定",
+                start_at=starts.isoformat().replace("+00:00", "Z"),
+            )
+        )
+
+
+def parse_matches_html(html: str) -> list[Match]:
+    parser = _MatchesHTMLParser()
+    parser.feed(html)
+    if not parser.saw_match_wrapper:
+        raise SourceError("没有从比赛列表中找到比赛节点，页面格式可能已变化")
+    return parser.matches
+
+
 def _opponent_from_match_line(line: str) -> str:
     image_names = re.findall(r"!\[Image \d+: ([^]]+)\]", line)
     ignored = {"Ninjas in Pyjamas", "Teamlogo"}
@@ -303,11 +406,15 @@ def get_news() -> list[NewsItem]:
 
 
 def get_nip_data() -> tuple[list[Match], list[Result], list[Transfer]]:
-    matches_page = fetch_via_reader(HLTV_MATCHES_URL)
+    matches_page = fetch_via_reader(
+        HLTV_MATCHES_URL,
+        response_format="html",
+        selector="[data-match-wrapper]",
+    )
     results_page = fetch_via_reader(HLTV_RESULTS_URL)
     transfers_page = fetch_via_reader(HLTV_TRANSFERS_URL)
     return (
-        parse_matches_page(matches_page),
+        parse_matches_html(matches_page),
         parse_results(results_page),
         parse_transfers(transfers_page),
     )
