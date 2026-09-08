@@ -1,8 +1,9 @@
 name: NIP 情报监控
+run-name: ${{ github.event_name == 'schedule' && '自动检查（每6分钟）' || format('手动运行：{0}', inputs.mode) }}
 
 on:
   schedule:
-    - cron: "*/6 * * * *"
+    - cron: "3,9,15,21,27,33,39,45,51,57 * * * *"
   workflow_dispatch:
     inputs:
       mode:
