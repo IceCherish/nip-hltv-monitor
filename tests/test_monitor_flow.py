@@ -53,7 +53,8 @@ class MonitorFlowTests(unittest.TestCase):
         with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
             app.run_monitor(datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc))
 
-            self.assertEqual(deliver.call_count, 2)
+            self.assertEqual(deliver.call_count, 1)
+            self.assertEqual(deliver.call_args.args[0], "🥷 【NIP 近期赛程预告】")
             sent_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
             self.assertEqual(sent_ids, ["3", "4", "5", "6", "7"])
 

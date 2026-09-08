@@ -4,7 +4,11 @@ import unittest
 from nip_monitor.app import _schedule_overview_message
 from nip_monitor.articles import Article, ArticleBlock, ArticleMatch, parse_article_html
 from nip_monitor.models import Match, NewsItem, Result
-from nip_monitor.notifiers import _article_as_text, _format_article_schedule
+from nip_monitor.notifiers import (
+    _article_as_text,
+    _format_article_schedule,
+    _format_published_at,
+)
 from nip_monitor.sources import (
     parse_match_details,
     parse_matches_html,
@@ -17,6 +21,12 @@ from nip_monitor.sources import (
 
 
 class ParserTests(unittest.TestCase):
+    def test_published_time_is_shown_in_beijing_time(self):
+        self.assertEqual(
+            _format_published_at("Tue, 8 Sep 2026 09:13:00 GMT"),
+            "2026年9月8日 17:13（北京时间）",
+        )
+
     def test_parse_news(self):
         text = """Markdown Content:
 ### [NIP sign Krimbo](https://www.hltv.org/news/45424/nip-sign-krimbo)

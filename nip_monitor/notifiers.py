@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
+from email.utils import parsedate_to_datetime
 from urllib.request import Request, urlopen
 
 from .articles import Article, ArticleBlock
@@ -18,6 +19,23 @@ from .articles import Article, ArticleBlock
 
 class NotificationError(RuntimeError):
     pass
+
+
+SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
+
+
+def _format_published_at(value: str) -> str:
+    try:
+        published = parsedate_to_datetime(value)
+    except (TypeError, ValueError, OverflowError):
+        try:
+            published = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            return value
+    if published.tzinfo is None:
+        published = published.replace(tzinfo=timezone.utc)
+    local = published.astimezone(SHANGHAI)
+    return f"{local.year}年{local.month}月{local.day}日 {local:%H:%M}（北京时间）"
 
 
 class Notifier:
@@ -40,7 +58,7 @@ class OneBotNotifier(Notifier):
     def send_article(self, label: str, article: Article) -> None:
         header = f"{label}\n\n{article.title}"
         if article.published_at:
-            header += f"\n发布时间：{article.published_at}"
+            header += f"\n发布时间：{_format_published_at(article.published_at)}"
         header += "\n━━━━━━━━━━━━"
         pending = header
         text_count = 0
@@ -280,7 +298,6 @@ def _format_article_schedule(block: ArticleBlock) -> str:
     for match in block.matches:
         groups.setdefault(match.event or "待定", []).append(match)
     sections: list[str] = []
-    shanghai = timezone(timedelta(hours=8), name="Asia/Shanghai")
     for event, matches in groups.items():
         lines = [f"🎮 赛事: {event}"]
         for match in matches:
@@ -288,7 +305,7 @@ def _format_article_schedule(block: ArticleBlock) -> str:
             if match.start_at:
                 local = datetime.fromisoformat(
                     match.start_at.replace("Z", "+00:00")
-                ).astimezone(shanghai)
+                ).astimezone(SHANGHAI)
                 when = f"{local:%d/%m/%Y %H:%M} "
             lines.append(f"⚔️ {when}{match.team1} vs {match.team2}")
         sections.append("\n".join(lines))
@@ -298,7 +315,7 @@ def _format_article_schedule(block: ArticleBlock) -> str:
 def _article_as_text(article: Article) -> str:
     parts = [article.title]
     if article.published_at:
-        parts.append(f"发布时间：{article.published_at}")
+        parts.append(f"发布时间：{_format_published_at(article.published_at)}")
     text_count = 0
     for block in article.blocks:
         if block.kind == "text":

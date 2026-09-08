@@ -135,16 +135,6 @@ def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
     )
 
 
-def _startup_message(matches: list[Match], reminder_minutes: int) -> tuple[str, str]:
-    lines = [
-        "监控已经启动。",
-        "",
-        "当前功能：HLTV 新闻中文摘要/文中赛程、NIP 近期赛程/往期回顾/转会动态、赛前提醒。",
-        f"提醒时间：开赛前约 {reminder_minutes} 分钟。",
-    ]
-    return "✅ NIP 监控已启动", "\n".join(lines)
-
-
 def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) -> int:
     now = now or datetime.now(timezone.utc)
     reminder_minutes = int(os.getenv("REMINDER_MINUTES", "30"))
@@ -171,7 +161,6 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     schedule_needed = force_schedule or daily_schedule_due or not state["initialized"]
 
     if not state["initialized"]:
-        notifications.append(_startup_message(matches, reminder_minutes))
         for item in reversed(news[:5]):
             article_notifications.append(
                 (_news_label(item), translate_article(get_article(item)))
