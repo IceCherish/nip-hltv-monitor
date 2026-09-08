@@ -85,7 +85,7 @@ class MonitorFlowTests(unittest.TestCase):
     def test_daily_schedule_is_sent_once_after_ten_beijing_time(self):
         patches = self._patch_monitor()
         with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
-            app.run_monitor(datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc))
+            app.run_monitor(datetime(2026, 9, 7, 3, 0, tzinfo=timezone.utc))
             deliver.reset_mock()
             deliver_article.reset_mock()
 
@@ -95,6 +95,46 @@ class MonitorFlowTests(unittest.TestCase):
 
             deliver.reset_mock()
             app.run_monitor(datetime(2026, 9, 8, 2, 7, tzinfo=timezone.utc))
+            deliver.assert_not_called()
+            deliver_article.assert_not_called()
+
+    def test_startup_before_ten_marks_schedule_sent_for_the_day(self):
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
+            app.run_monitor(
+                datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc),
+                force_schedule=True,
+            )
+            self.assertEqual(deliver.call_count, 1)
+            deliver.reset_mock()
+            deliver_article.reset_mock()
+
+            app.run_monitor(datetime(2026, 9, 8, 2, 1, tzinfo=timezone.utc))
+            deliver.assert_not_called()
+            deliver_article.assert_not_called()
+
+    def test_match_or_result_change_does_not_push_schedule(self):
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
+            app.run_monitor(datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc))
+            deliver.reset_mock()
+            deliver_article.reset_mock()
+
+            changed_matches = [
+                Match(
+                    "match-2",
+                    "SINNERS",
+                    "https://example.test/match-2",
+                    "Another Event",
+                    "2026-09-11T07:00:00Z",
+                )
+            ]
+            changed_results = [
+                Result("result-2", "fnatic", 1, 2, "Another Result Event")
+            ]
+            nip_data.return_value = (changed_matches, changed_results, [])
+            app.run_monitor(datetime(2026, 9, 8, 3, 6, tzinfo=timezone.utc))
+
             deliver.assert_not_called()
             deliver_article.assert_not_called()
 

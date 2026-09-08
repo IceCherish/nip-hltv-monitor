@@ -173,13 +173,6 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
                 (_news_label(item), translate_article(get_article(item)))
             )
 
-        known_match_ids = set(state["matches"])
-        current_match_ids = {match.match_id for match in matches}
-        known_result_ids = set(state.get("recent_result_ids", []))
-        current_result_ids = {result.result_id for result in recent_results}
-        if known_match_ids != current_match_ids or known_result_ids != current_result_ids:
-            schedule_needed = True
-
         known_transfers = set(state["transfer_ids"])
         notifications.extend(
             _transfer_message(item) for item in reversed(transfers) if item.transfer_id not in known_transfers
@@ -204,7 +197,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         deliver_article(label, article, notifiers)
 
     last_daily_schedule_date = state.get("last_daily_schedule_date", "")
-    if schedule_needed and local_now.hour >= 10:
+    if schedule_needed:
         last_daily_schedule_date = today
     next_values = {
         "initialized": True,
@@ -275,8 +268,12 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             deliver("✅ NIP 监控测试", "如果你看到这条消息，通知配置成功。", notifiers)
             return 0
-        is_github_action = os.getenv("GITHUB_ACTIONS", "").lower() == "true"
-        return run_monitor(force_schedule=not is_github_action)
+        github_event = os.getenv("GITHUB_EVENT_NAME", "").lower()
+        is_scheduled_github_check = (
+            os.getenv("GITHUB_ACTIONS", "").lower() == "true"
+            and github_event == "schedule"
+        )
+        return run_monitor(force_schedule=not is_scheduled_github_check)
     except (SourceError, TranslationError, NotificationError, ValueError) as exc:
         print(f"运行失败：{exc}")
         return 1
