@@ -131,18 +131,18 @@ def run_monitor(now: datetime | None = None) -> int:
     for title, message in notifications:
         deliver(title, message, notifiers)
 
-    state.update(
-        {
-            "initialized": True,
-            "news_ids": [item.news_id for item in news[:100]],
-            "matches": {
-                item.match_id: {**item.to_dict(), "signature": item.signature()} for item in matches
-            },
-            "transfer_ids": [item.transfer_id for item in transfers[:100]],
-            "sent_reminders": sorted(sent_reminders),
-            "updated_at": now.isoformat().replace("+00:00", "Z"),
-        }
-    )
+    next_values = {
+        "initialized": True,
+        "news_ids": [item.news_id for item in news[:100]],
+        "matches": {
+            item.match_id: {**item.to_dict(), "signature": item.signature()} for item in matches
+        },
+        "transfer_ids": [item.transfer_id for item in transfers[:100]],
+        "sent_reminders": sorted(sent_reminders),
+    }
+    if any(state.get(key) != value for key, value in next_values.items()):
+        next_values["updated_at"] = now.isoformat().replace("+00:00", "Z")
+    state.update(next_values)
     save_state(STATE_PATH, state)
     message_count = len(notifications) + len(article_notifications)
     print(f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，阵容动态 {len(transfers)} 条，新消息 {message_count} 条。")
