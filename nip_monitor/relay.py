@@ -16,6 +16,7 @@ from .notifiers import NotificationError, OneBotNotifier
 ROOT = Path(__file__).resolve().parent.parent
 MAX_BODY_BYTES = 6 * 1024 * 1024
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
+MAX_ARTICLE_IMAGE_BYTES = 4 * 1024 * 1024
 _seen_nonces: dict[str, int] = {}
 _nonce_lock = threading.Lock()
 
@@ -76,6 +77,49 @@ def _forward_payload(payload: dict[str, object], notifier: OneBotNotifier) -> No
         if not image or len(image) > MAX_IMAGE_BYTES:
             raise ValueError("image size is invalid")
         notifier._send_image_data(image)
+        return
+    if kind == "rich_message":
+        parts = payload.get("parts")
+        if not isinstance(parts, list) or not parts or len(parts) > 32:
+            raise ValueError("rich message parts are invalid")
+        message: list[dict[str, object]] = []
+        text_length = 0
+        image_bytes = 0
+        for part in parts:
+            if not isinstance(part, dict):
+                raise ValueError("rich message part must be an object")
+            part_kind = part.get("kind")
+            if part_kind == "text":
+                text = part.get("text")
+                if not isinstance(text, str) or not text:
+                    raise ValueError("rich message text is invalid")
+                text_length += len(text)
+                if text_length > 20_000:
+                    raise ValueError("rich message text is too large")
+                message.append({"type": "text", "data": {"text": text}})
+                continue
+            if part_kind == "image":
+                encoded = part.get("data")
+                if not isinstance(encoded, str):
+                    raise ValueError("rich message image must be base64")
+                try:
+                    image = base64.b64decode(encoded, validate=True)
+                except (ValueError, base64.binascii.Error) as exc:
+                    raise ValueError("invalid rich message image") from exc
+                if not image or len(image) > MAX_IMAGE_BYTES:
+                    raise ValueError("rich message image size is invalid")
+                image_bytes += len(image)
+                if image_bytes > MAX_ARTICLE_IMAGE_BYTES:
+                    raise ValueError("rich message images are too large")
+                message.append(
+                    {
+                        "type": "image",
+                        "data": {"file": f"base64://{encoded}"},
+                    }
+                )
+                continue
+            raise ValueError("unsupported rich message part")
+        notifier._post_message(message)
         return
     raise ValueError("unsupported message kind")
 

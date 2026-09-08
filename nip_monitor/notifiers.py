@@ -25,6 +25,7 @@ class NotificationError(RuntimeError):
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 MAX_ARTICLE_IMAGES = 8
 MAX_IMAGE_BYTES = 4 * 1024 * 1024
+MAX_ARTICLE_IMAGE_BYTES = 4 * 1024 * 1024
 
 
 def _format_published_at(value: str) -> str:
@@ -104,6 +105,49 @@ def _article_operations(label: str, article: Article) -> list[tuple[str, str]]:
     return operations
 
 
+def _article_message_parts(label: str, article: Article) -> list[dict[str, str]]:
+    parts: list[dict[str, str]] = []
+    image_bytes = 0
+    for kind, value in _article_operations(label, article):
+        if kind == "text":
+            if parts and parts[-1]["kind"] == "text":
+                value = "\n\n" + value
+            parts.append({"kind": "text", "text": value})
+            continue
+        try:
+            data, content_type = _download_image(value)
+        except NotificationError as exc:
+            print(f"图片处理失败，已跳过且保留整篇文字：{exc}")
+            continue
+        if image_bytes + len(data) > MAX_ARTICLE_IMAGE_BYTES:
+            print("文章图片累计超过 4 MiB，本张已跳过且保留整篇文字。")
+            continue
+        image_bytes += len(data)
+        parts.append(
+            {
+                "kind": "image",
+                "content_type": content_type,
+                "data": base64.b64encode(data).decode("ascii"),
+            }
+        )
+    return parts
+
+
+def _parts_to_onebot(parts: list[dict[str, str]]) -> list[dict[str, object]]:
+    message: list[dict[str, object]] = []
+    for part in parts:
+        if part["kind"] == "text":
+            message.append({"type": "text", "data": {"text": part["text"]}})
+        else:
+            message.append(
+                {
+                    "type": "image",
+                    "data": {"file": f"base64://{part['data']}"},
+                }
+            )
+    return message
+
+
 class Notifier:
     name = "notifier"
 
@@ -122,15 +166,15 @@ class OneBotNotifier(Notifier):
         self._send_text(f"{title}\n\n{message}")
 
     def send_article(self, label: str, article: Article) -> None:
-        for kind, value in _article_operations(label, article):
-            if kind == "text":
-                self._send_text(value)
-                continue
-            try:
-                data, _ = _download_image(value)
-                self._send_image_data(data)
-            except NotificationError as exc:
-                print(f"图片发送失败，已跳过且继续发送文字：{exc}")
+        parts = _article_message_parts(label, article)
+        try:
+            self._post_message(_parts_to_onebot(parts))
+        except NotificationError as exc:
+            text_parts = [part for part in parts if part["kind"] == "text"]
+            if len(text_parts) == len(parts):
+                raise
+            print(f"整条图文发送失败，正在降级为一条纯文字消息：{exc}")
+            self._post_message(_parts_to_onebot(text_parts))
 
     def _send_text(self, text: str) -> None:
         for start in range(0, len(text), 3000):
@@ -177,21 +221,15 @@ class RelayNotifier(Notifier):
         self._send_payload({"kind": "notification", "title": title, "message": message})
 
     def send_article(self, label: str, article: Article) -> None:
-        for kind, value in _article_operations(label, article):
-            if kind == "text":
-                self._send_payload({"kind": "text", "text": value})
-                continue
-            try:
-                data, content_type = _download_image(value)
-                self._send_payload(
-                    {
-                        "kind": "image",
-                        "content_type": content_type,
-                        "data": base64.b64encode(data).decode("ascii"),
-                    }
-                )
-            except NotificationError as exc:
-                print(f"图片中继失败，已跳过且继续发送文字：{exc}")
+        parts = _article_message_parts(label, article)
+        try:
+            self._send_payload({"kind": "rich_message", "parts": parts})
+        except NotificationError as exc:
+            text_parts = [part for part in parts if part["kind"] == "text"]
+            if len(text_parts) == len(parts):
+                raise
+            print(f"整条图文中继失败，正在降级为一条纯文字消息：{exc}")
+            self._send_payload({"kind": "rich_message", "parts": text_parts})
 
     def _send_payload(self, payload: dict[str, object]) -> None:
         body = json.dumps(

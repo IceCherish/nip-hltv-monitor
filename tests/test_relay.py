@@ -5,11 +5,57 @@ import unittest
 from http.server import ThreadingHTTPServer
 from unittest.mock import patch
 
+from nip_monitor.articles import Article, ArticleBlock
 from nip_monitor.notifiers import RelayNotifier
 from nip_monitor.relay import RelayHandler
 
 
 class RelayTests(unittest.TestCase):
+    def test_signed_relay_forwards_article_as_one_mixed_message(self):
+        old_secret = os.environ.get("RELAY_SECRET")
+        old_group = os.environ.get("QQ_GROUP_ID")
+        os.environ["RELAY_SECRET"] = "test-secret-with-at-least-20-characters"
+        os.environ["QQ_GROUP_ID"] = "123456789"
+        server = ThreadingHTTPServer(("127.0.0.1", 0), RelayHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        article = Article(
+            title="Title",
+            original_url="https://www.hltv.org/news/1/test",
+            published_at="",
+            blocks=(
+                ArticleBlock(kind="text", text="before"),
+                ArticleBlock(kind="image", url="https://img.test/image.jpg"),
+                ArticleBlock(kind="text", text="after"),
+            ),
+        )
+        try:
+            with patch(
+                "nip_monitor.notifiers._download_image",
+                return_value=(b"fake-image", "image/jpeg"),
+            ), patch("nip_monitor.relay.OneBotNotifier._post_message") as post_message:
+                RelayNotifier(
+                    url=f"http://127.0.0.1:{server.server_port}/notify",
+                    secret=os.environ["RELAY_SECRET"],
+                ).send_article("news", article)
+                post_message.assert_called_once()
+                self.assertEqual(
+                    [part["type"] for part in post_message.call_args.args[0]],
+                    ["text", "image", "text"],
+                )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+            if old_secret is None:
+                os.environ.pop("RELAY_SECRET", None)
+            else:
+                os.environ["RELAY_SECRET"] = old_secret
+            if old_group is None:
+                os.environ.pop("QQ_GROUP_ID", None)
+            else:
+                os.environ["QQ_GROUP_ID"] = old_group
+
     def test_signed_relay_forwards_image_bytes(self):
         old_secret = os.environ.get("RELAY_SECRET")
         old_group = os.environ.get("QQ_GROUP_ID")

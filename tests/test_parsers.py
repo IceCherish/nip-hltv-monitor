@@ -45,12 +45,39 @@ class ParserTests(unittest.TestCase):
         with patch(
             "nip_monitor.notifiers._download_image",
             side_effect=NotificationError("download failed"),
-        ), patch.object(notifier, "_send_text") as send_text:
+        ), patch.object(notifier, "_post_message") as post_message:
             notifier.send_article("news", article)
-        rendered = "\n".join(call.args[0] for call in send_text.call_args_list)
+        post_message.assert_called_once()
+        message = post_message.call_args.args[0]
+        self.assertTrue(all(part["type"] == "text" for part in message))
+        rendered = "\n".join(part["data"]["text"] for part in message)
         self.assertIn("before image", rendered)
         self.assertIn("after image", rendered)
         self.assertIn("点此阅读原文", rendered)
+
+    def test_article_text_and_image_use_one_onebot_message(self):
+        article = Article(
+            title="Title",
+            original_url="https://www.hltv.org/news/1/test",
+            published_at="",
+            blocks=(
+                ArticleBlock(kind="text", text="before image"),
+                ArticleBlock(kind="image", url="https://img.test/image.jpg"),
+                ArticleBlock(kind="text", text="after image"),
+            ),
+        )
+        notifier = OneBotNotifier("http://127.0.0.1:3000", 123)
+        with patch(
+            "nip_monitor.notifiers._download_image",
+            return_value=(b"fake-image", "image/jpeg"),
+        ), patch.object(notifier, "_post_message") as post_message:
+            notifier.send_article("news", article)
+
+        post_message.assert_called_once()
+        self.assertEqual(
+            [part["type"] for part in post_message.call_args.args[0]],
+            ["text", "image", "text"],
+        )
 
     def test_published_time_is_shown_in_beijing_time(self):
         self.assertEqual(
