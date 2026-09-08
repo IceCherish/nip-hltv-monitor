@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -161,6 +162,18 @@ class MonitorFlowTests(unittest.TestCase):
 
             deliver.assert_not_called()
             deliver_article.assert_not_called()
+
+    def test_external_dispatch_is_treated_as_scheduled_check(self):
+        environment = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_EVENT_NAME": "workflow_dispatch",
+            "MONITOR_RUN_KIND": "scheduled",
+        }
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            app, "run_monitor", return_value=0
+        ) as run_monitor:
+            self.assertEqual(app.main([]), 0)
+        run_monitor.assert_called_once_with(force_schedule=False)
 
 
 if __name__ == "__main__":

@@ -279,7 +279,10 @@ def main(argv: list[str] | None = None) -> int:
         github_event = os.getenv("GITHUB_EVENT_NAME", "").lower()
         is_scheduled_github_check = (
             os.getenv("GITHUB_ACTIONS", "").lower() == "true"
-            and github_event == "schedule"
+            and (
+                github_event == "schedule"
+                or os.getenv("MONITOR_RUN_KIND", "").lower() == "scheduled"
+            )
         )
         return run_monitor(force_schedule=not is_scheduled_github_check)
     except (SourceError, TranslationError, NotificationError, ValueError) as exc:
