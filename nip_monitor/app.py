@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -16,6 +17,26 @@ ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 NIP_KEYWORDS = ("nip", "ninjas in pyjamas")
+
+
+def _load_local_env(path: Path) -> None:
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            continue
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
+
+
+_load_local_env(ROOT / ".env")
 
 
 def _is_nip_news(item: NewsItem) -> bool:
