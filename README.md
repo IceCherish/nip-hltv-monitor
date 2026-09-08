@@ -23,10 +23,12 @@ QQ群
 - 展示全部 NIP 未开赛比赛，同一赛事名称只显示一次
 - 展示 NIP 最近一个已结束赛事的全部赛果
 - NIP 赛前提醒和 HLTV Transfers 阵容动态
+- 每次启动常驻程序时立即发送一次当前赛程；持续运行时每天北京时间 10 点发送一次
+- 第一次正式运行发送最新 5 条新闻；之后按 HLTV 新闻编号去重，只发送新增新闻
 - 本机直连 NapCat 与 GitHub → 国内服务器中继两种模式
 - Google 免费非官方翻译优先，可配置腾讯云故障备用
 
-第一次正式运行只发送启动消息、当前近期赛程和最近赛事回顾，不补发历史新闻。
+第一次正式运行依次发送启动消息、当前近期赛程与最近赛事回顾、最新 5 条新闻。程序会把已经见过的 HLTV 新闻编号保存到 `data/state.json`，以后重复检查时不会再次发送；如果一次检查发现多条新新闻，会按从旧到新的顺序发送。
 
 ## 最终消息样式
 
@@ -39,9 +41,7 @@ QQ群
 （最多前 10 个中文正文段落）
 
 🎮 赛事: 数字远征超级德古拉N 第 1 季
-
 ⚔️ 28/06/2026 21:30 Sharks vs Echo
-
 ⚔️ 29/06/2026 01:00 Inner Circle vs Acend
 
 🔗点此阅读原文：https://www.hltv.org/news/45014/...
@@ -90,22 +90,21 @@ ONEBOT_HTTP_URL=http://127.0.0.1:3000
 ONEBOT_ACCESS_TOKEN=NapCat HTTP 服务端的 Token
 ```
 
-测试：
+先做不会联网、不会发送 QQ 消息的内部检查：
 
 ```powershell
 python -m unittest discover -s tests -v
-python monitor.py --test-notification
-python monitor.py --test-rich-article
-python monitor.py
 ```
 
-持续运行：
+然后把 QQ 小号和 NapCat 登录好，并先把 `QQ_GROUP_ID` 填成你的无人测试群。由你亲自执行下面这一条，开始真实运行：
 
 ```powershell
 python run_forever.py
 ```
 
-电脑关机、休眠或关闭 NapCat 后就会停止。
+这不是假数据模拟：程序会立即抓取真实数据，并向测试群发送启动提示、当前 NIP 赛程/往期回顾和最新 5 条 HLTV 新闻。之后每约 6 分钟检查一次；没有新内容时不会发消息。保持程序不关闭时，每天北京时间 10 点之后的第一次检查会发送一次当天赛程。按 `Ctrl+C` 停止。
+
+电脑关机、休眠、关闭这个窗口或退出 NapCat 后都会停止。我们不会替你执行 `python run_forever.py`，因为这条命令会真实向你配置的 QQ 群发送消息。
 
 ## 模式二：GitHub 抓取，国内服务器发 QQ
 
@@ -157,9 +156,9 @@ systemctl status nip-relay
 
 - `test_notification`：只测试 GitHub → 国内服务器 → QQ
 - `test_article`：发送一篇真实的中文 HLTV 测试新闻
-- `monitor`：正式运行；第一次发送启动、近期赛程和往期回顾
+- `monitor`：正式运行；第一次发送启动、近期赛程/往期回顾和最新 5 条新闻
 
-正式成功后，工作流默认每 6 分钟执行一次。
+正式成功后，GitHub Actions 默认每约 6 分钟启动一次临时检查任务。它每次只负责检查有没有新新闻、新赛程、赛果、转会或赛前提醒，检查完成就退出；这不是把 QQ 机器人每 6 分钟重启一次。没有变化时不会向 QQ 群发送消息。GitHub 的定时任务偶尔可能排队，因此不保证精确到秒。
 
 ## 翻译与安全
 

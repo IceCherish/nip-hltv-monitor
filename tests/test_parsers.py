@@ -149,6 +149,7 @@ Thursday - 2026-09-10
         )
         rendered = _format_article_schedule(block)
         self.assertEqual(rendered.count("🎮 赛事:"), 1)
+        self.assertNotIn("\n\n⚔️", rendered)
         self.assertIn("⚔️ 28/06/2026 21:30 Sharks vs Echo", rendered)
         self.assertIn("⚔️ 29/06/2026 01:00 Inner Circle vs Acend", rendered)
 

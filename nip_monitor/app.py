@@ -145,7 +145,7 @@ def _startup_message(matches: list[Match], reminder_minutes: int) -> tuple[str, 
     return "✅ NIP 监控已启动", "\n".join(lines)
 
 
-def run_monitor(now: datetime | None = None) -> int:
+def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) -> int:
     now = now or datetime.now(timezone.utc)
     reminder_minutes = int(os.getenv("REMINDER_MINUTES", "30"))
     news_mode = os.getenv("NEWS_MODE", "all").strip().lower()
@@ -162,10 +162,20 @@ def run_monitor(now: datetime | None = None) -> int:
     state = load_state(STATE_PATH)
     notifications: list[tuple[str, str]] = []
     article_notifications: list[tuple[str, Article]] = []
+    local_now = now.astimezone(SHANGHAI)
+    today = local_now.date().isoformat()
+    daily_schedule_due = (
+        local_now.hour >= 10
+        and state.get("last_daily_schedule_date", "") != today
+    )
+    schedule_needed = force_schedule or daily_schedule_due or not state["initialized"]
 
     if not state["initialized"]:
         notifications.append(_startup_message(matches, reminder_minutes))
-        notifications.append(_schedule_overview_message(matches, recent_results, now))
+        for item in reversed(news[:5]):
+            article_notifications.append(
+                (_news_label(item), translate_article(get_article(item)))
+            )
     else:
         known_news = set(state["news_ids"])
         new_news = [item for item in reversed(news) if item.news_id not in known_news]
@@ -179,12 +189,15 @@ def run_monitor(now: datetime | None = None) -> int:
         known_result_ids = set(state.get("recent_result_ids", []))
         current_result_ids = {result.result_id for result in recent_results}
         if known_match_ids != current_match_ids or known_result_ids != current_result_ids:
-            notifications.append(_schedule_overview_message(matches, recent_results, now))
+            schedule_needed = True
 
         known_transfers = set(state["transfer_ids"])
         notifications.extend(
             _transfer_message(item) for item in reversed(transfers) if item.transfer_id not in known_transfers
         )
+
+    if schedule_needed:
+        notifications.append(_schedule_overview_message(matches, recent_results, now))
 
     sent_reminders = set(state["sent_reminders"])
     for match in matches:
@@ -196,11 +209,14 @@ def run_monitor(now: datetime | None = None) -> int:
             notifications.append(_reminder_message(match, minutes))
             sent_reminders.add(match.match_id)
 
-    for label, article in article_notifications:
-        deliver_article(label, article, notifiers)
     for title, message in notifications:
         deliver(title, message, notifiers)
+    for label, article in article_notifications:
+        deliver_article(label, article, notifiers)
 
+    last_daily_schedule_date = state.get("last_daily_schedule_date", "")
+    if schedule_needed and local_now.hour >= 10:
+        last_daily_schedule_date = today
     next_values = {
         "initialized": True,
         "news_ids": [item.news_id for item in news[:100]],
@@ -210,6 +226,7 @@ def run_monitor(now: datetime | None = None) -> int:
         "transfer_ids": [item.transfer_id for item in transfers[:100]],
         "sent_reminders": sorted(sent_reminders),
         "recent_result_ids": [result.result_id for result in recent_results],
+        "last_daily_schedule_date": last_daily_schedule_date,
     }
     if any(state.get(key) != value for key, value in next_values.items()):
         next_values["updated_at"] = now.isoformat().replace("+00:00", "Z")
@@ -251,7 +268,8 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             deliver("✅ NIP 监控测试", "如果你看到这条消息，通知配置成功。", notifiers)
             return 0
-        return run_monitor()
+        is_github_action = os.getenv("GITHUB_ACTIONS", "").lower() == "true"
+        return run_monitor(force_schedule=not is_github_action)
     except (SourceError, TranslationError, NotificationError, ValueError) as exc:
         print(f"运行失败：{exc}")
         return 1

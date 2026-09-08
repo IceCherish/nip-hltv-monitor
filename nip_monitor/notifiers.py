@@ -290,7 +290,7 @@ def _format_article_schedule(block: ArticleBlock) -> str:
                     match.start_at.replace("Z", "+00:00")
                 ).astimezone(shanghai)
                 when = f"{local:%d/%m/%Y %H:%M} "
-            lines.append(f"\n⚔️ {when}{match.team1} vs {match.team2}")
+            lines.append(f"⚔️ {when}{match.team1} vs {match.team2}")
         sections.append("\n".join(lines))
     return "\n\n".join(sections)
 
