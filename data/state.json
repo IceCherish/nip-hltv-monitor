@@ -6,8 +6,8 @@
       "event": "Thunderpick World Championship 2026 Closed Qualifier",
       "match_id": "2397862",
       "opponent": "FOKUS",
-      "signature": "FOKUS|Thunderpick World Championship 2026 Closed Qualifier|2026-09-09T17:00:00Z",
-      "start_at": "2026-09-09T17:00:00Z",
+      "signature": "FOKUS|Thunderpick World Championship 2026 Closed Qualifier|2026-09-09T17:15:00Z",
+      "start_at": "2026-09-09T17:15:00Z",
       "url": "https://www.hltv.org/matches/2397862/ninjas-in-pyjamas-vs-fokus-thunderpick-world-championship-2026-closed-qualifier"
     },
     "2397886": {
@@ -75,6 +75,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-09T16:30:32.778942Z",
+  "updated_at": "2026-09-09T17:00:39.789536Z",
   "version": 1
 }
