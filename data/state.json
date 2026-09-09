@@ -3,10 +3,10 @@
   "last_daily_schedule_date": "2026-09-09",
   "matches": {
     "2397722": {
-      "event": "PGL Masters Bucharest 2026 Europe Closed Qualifier",
+      "event": "待定",
       "match_id": "2397722",
       "opponent": "SINNERS",
-      "signature": "SINNERS|PGL Masters Bucharest 2026 Europe Closed Qualifier|2026-09-09T14:00:00Z",
+      "signature": "SINNERS|待定|2026-09-09T14:00:00Z",
       "start_at": "2026-09-09T14:00:00Z",
       "url": "https://www.hltv.org/matches/2397722/ninjas-in-pyjamas-vs-sinners-pgl-masters-bucharest-2026-europe-closed-qualifier"
     },
@@ -40,6 +40,6 @@
   "transfer_ids": [
     "14006672c608ee51"
   ],
-  "updated_at": "2026-09-09T10:00:37.098765Z",
+  "updated_at": "2026-09-09T11:00:39.648929Z",
   "version": 1
 }
