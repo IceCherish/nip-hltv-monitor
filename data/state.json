@@ -2,6 +2,14 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-09-09",
   "matches": {
+    "2397769": {
+      "event": "PGL Masters Bucharest 2026 Europe Closed Qualifier",
+      "match_id": "2397769",
+      "opponent": "Inner Circle",
+      "signature": "Inner Circle|PGL Masters Bucharest 2026 Europe Closed Qualifier|2026-09-10T11:00:00Z",
+      "start_at": "2026-09-10T11:00:00Z",
+      "url": "https://www.hltv.org/matches/2397769/ninjas-in-pyjamas-vs-inner-circle-pgl-masters-bucharest-2026-europe-closed-qualifier"
+    },
     "2397886": {
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397886",
@@ -65,6 +73,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-09T17:30:31.075988Z",
+  "updated_at": "2026-09-09T19:30:30.281188Z",
   "version": 1
 }
