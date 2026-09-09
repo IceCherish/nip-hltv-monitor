@@ -33,6 +33,27 @@ class MonitorFlowTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def test_reminder_message_uses_dynamic_countdown_style(self):
+        title, regular = app._reminder_message(self.matches[0], 29)
+        _, urgent = app._reminder_message(self.matches[0], 8)
+        _, immediate = app._reminder_message(self.matches[0], 1)
+        pending = Match(
+            "match-2",
+            "SINNERS",
+            "https://example.test/match-2",
+            "待定",
+            "2026-09-10T07:00:00Z",
+        )
+        _, pending_message = app._reminder_message(pending, 29)
+
+        self.assertEqual(title, "🚨 【NIP 吃史警告】")
+        self.assertIn("🔥 29 分钟后开战！", regular)
+        self.assertIn("🎮 赛事：XSE Pro League 2026", regular)
+        self.assertIn("⚔️ 对阵：NIP vs HEROIC", regular)
+        self.assertIn("🚨 仅剩 8 分钟！", urgent)
+        self.assertIn("🚨 比赛即将开始！", immediate)
+        self.assertIn("🎮 赛事：暂未公布", pending_message)
+
     def test_reset_news_state_keeps_reminder_history(self):
         app.save_state(
             self.state_path,

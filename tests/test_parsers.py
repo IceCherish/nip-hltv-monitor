@@ -17,6 +17,7 @@ from nip_monitor.notifiers import (
     _format_published_at,
 )
 from nip_monitor.sources import (
+    _enrich_missing_match_details,
     parse_match_details,
     parse_matches_html,
     parse_matches_page,
@@ -274,6 +275,47 @@ Thursday - 2026-09-10
         self.assertEqual(items[0].opponent, "SINNERS")
         self.assertEqual(items[0].event, "PGL Masters Bucharest")
         self.assertEqual(items[0].start_at, "2026-09-09T14:00:00Z")
+
+    def test_parse_matches_html_prefers_complete_duplicate(self):
+        text = """
+<div class="match-wrapper" data-match-id="2397722" team1="4411" team2="10577" live="false">
+  <a href="/matches/2397722/ninjas-in-pyjamas-vs-sinners-event"></a>
+  <div class="match-time" data-unix="1788962400000">14:00</div>
+  <div class="match-teamname">Ninjas in Pyjamas</div>
+  <div class="match-teamname">SINNERS</div>
+</div>
+<div class="match-wrapper" data-match-id="2397722" team1="4411" team2="10577" live="false">
+  <a href="/matches/2397722/ninjas-in-pyjamas-vs-sinners-event">
+    <div class="match-event" data-event-headline="PGL Masters Bucharest"></div>
+  </a>
+  <div class="match-time" data-unix="1788962400000">14:00</div>
+  <div class="match-teamname">Ninjas in Pyjamas</div>
+  <div class="match-teamname">SINNERS</div>
+</div>
+"""
+        items = parse_matches_html(text)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].event, "PGL Masters Bucharest")
+
+    def test_missing_match_event_is_filled_from_detail_page(self):
+        basic = Match(
+            match_id="2397722",
+            opponent="SINNERS",
+            url="https://www.hltv.org/matches/2397722/nip-vs-sinners-event",
+            event="待定",
+            start_at="2026-09-09T14:00:00Z",
+        )
+        detail = """[Ninjas in Pyjamas](https://www.hltv.org/team/4411/ninjas-in-pyjamas)
+14:00
+9th of September 2026
+[PGL Masters Bucharest](https://www.hltv.org/events/9241/pgl-masters-bucharest)
+"""
+        with patch(
+            "nip_monitor.sources.fetch_via_reader", return_value=detail
+        ) as fetch:
+            items = _enrich_missing_match_details([basic])
+        self.assertEqual(items[0].event, "PGL Masters Bucharest")
+        fetch.assert_called_once_with(basic.url)
 
     def test_parse_article_ignores_images_and_keeps_embedded_schedule(self):
         item = NewsItem("45014", "Semi-finals set", "", "https://www.hltv.org/news/45014/test")

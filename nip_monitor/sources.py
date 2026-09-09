@@ -214,7 +214,7 @@ class _MatchesHTMLParser(HTMLParser):
         self._div_depth = 0
         self._team_capture_depth = 0
         self._team_text: list[str] = []
-        self._seen_ids: set[str] = set()
+        self._match_indexes: dict[str, int] = {}
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: value or "" for key, value in attrs}
@@ -275,7 +275,7 @@ class _MatchesHTMLParser(HTMLParser):
         current = self._current
         self._current = None
         match_id = str(current["match_id"])
-        if not match_id or match_id in self._seen_ids or current["live"]:
+        if not match_id or current["live"]:
             return
         teams = current["teams"]
         assert isinstance(teams, list)
@@ -287,16 +287,22 @@ class _MatchesHTMLParser(HTMLParser):
         url = str(current["url"])
         if not opponent or not url:
             return
-        self._seen_ids.add(match_id)
-        self.matches.append(
-            Match(
-                match_id=match_id,
-                opponent=opponent,
-                url=url,
-                event=str(current["event"]).strip() or "待定",
-                start_at=starts.isoformat().replace("+00:00", "Z"),
-            )
+        candidate = Match(
+            match_id=match_id,
+            opponent=opponent,
+            url=url,
+            event=str(current["event"]).strip() or "待定",
+            start_at=starts.isoformat().replace("+00:00", "Z"),
         )
+        existing_index = self._match_indexes.get(match_id)
+        if existing_index is None:
+            self._match_indexes[match_id] = len(self.matches)
+            self.matches.append(candidate)
+            return
+
+        existing = self.matches[existing_index]
+        if existing.event == "待定" and candidate.event != "待定":
+            self.matches[existing_index] = candidate
 
 
 def parse_matches_html(html: str) -> list[Match]:
@@ -305,6 +311,21 @@ def parse_matches_html(html: str) -> list[Match]:
     if not parser.saw_match_wrapper:
         raise SourceError("没有从比赛列表中找到比赛节点，页面格式可能已变化")
     return parser.matches
+
+
+def _enrich_missing_match_details(matches: list[Match]) -> list[Match]:
+    enriched: list[Match] = []
+    for match in matches:
+        if match.event != "待定":
+            enriched.append(match)
+            continue
+        try:
+            detail_page = fetch_via_reader(match.url)
+            enriched.append(parse_match_details(detail_page, match))
+        except SourceError as exc:
+            print(f"比赛 {match.match_id} 的赛事名补全失败，本轮保留待定：{exc}")
+            enriched.append(match)
+    return enriched
 
 
 def _opponent_from_match_line(line: str) -> str:
@@ -414,8 +435,5 @@ def get_nip_data() -> tuple[list[Match], list[Result], list[Transfer]]:
     )
     results_page = fetch_via_reader(HLTV_RESULTS_URL)
     transfers_page = fetch_via_reader(HLTV_TRANSFERS_URL)
-    return (
-        parse_matches_html(matches_page),
-        parse_results(results_page),
-        parse_transfers(transfers_page),
-    )
+    matches = _enrich_missing_match_details(parse_matches_html(matches_page))
+    return matches, parse_results(results_page), parse_transfers(transfers_page)

@@ -188,13 +188,19 @@ def _transfer_message(item: Transfer) -> tuple[str, str]:
 
 
 def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
+    if minutes <= 1:
+        countdown = "🚨 比赛即将开始！"
+    elif minutes <= 10:
+        countdown = f"🚨 仅剩 {minutes} 分钟！"
+    else:
+        countdown = f"🔥 {minutes} 分钟后开战！"
     return (
-        "⏰ NIP 比赛即将开始",
-        f"距离开赛约 {minutes} 分钟\n"
-        f"Ninjas in Pyjamas vs {match.opponent}\n"
-        f"赛事：{match.event}\n"
-        f"时间：{_format_time(match)}\n"
-        f"{match.url}",
+        "🚨 【NIP 吃史警告】",
+        f"{countdown}\n\n"
+        f"🎮 赛事：{match.event if match.event != '待定' else '暂未公布'}\n"
+        f"⚔️ 对阵：NIP vs {match.opponent}\n"
+        f"⏰ 时间：{_format_time(match)}\n\n"
+        f"🔗 比赛详情：\n{match.url}",
     )
 
 
