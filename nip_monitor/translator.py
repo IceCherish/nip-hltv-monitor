@@ -36,8 +36,10 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
         if provider == "auto"
         else [provider]
     )
+    chunk_limit = 1800 if "tencent" in providers else 3500
     translated: list[str] = []
-    for chunk in _chunks(text):
+    used_providers: list[str] = []
+    for chunk in _chunks(text, limit=chunk_limit):
         errors: list[str] = []
         translated_chunk: str | None = None
         for current_provider in providers:
@@ -67,12 +69,25 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
                     if attempt < attempts:
                         time.sleep(2 ** (attempt - 1))
             if translated_chunk is not None:
+                if current_provider not in used_providers:
+                    used_providers.append(current_provider)
                 break
             errors.append(f"{current_provider}: {last_error}")
+            if current_provider != providers[-1]:
+                print(
+                    f"{_provider_label(current_provider)}翻译失败，"
+                    f"本段改用{_provider_label(providers[providers.index(current_provider) + 1])}："
+                    f"{last_error}"
+                )
         if translated_chunk is None:
             raise TranslationError("All translation providers failed: " + "; ".join(errors))
         translated.append(translated_chunk)
+    print("本次翻译服务：" + "、".join(_provider_label(item) for item in used_providers))
     return "".join(translated).strip()
+
+
+def _provider_label(provider: str) -> str:
+    return "腾讯云" if provider == "tencent" else "Google"
 
 
 def _translate_google(text: str, timeout: int) -> str:
@@ -110,13 +125,13 @@ def _translate_tencent(text: str, timeout: int) -> str:
     action = "TextTranslate"
     timestamp = int(time.time())
     date = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+    term_repo_id = os.getenv("TENCENT_TERM_REPO_ID", "").strip()
     payload_data: dict[str, object] = {
         "SourceText": text,
-        "Source": "auto",
+        "Source": "en" if term_repo_id else "auto",
         "Target": "zh",
         "ProjectId": 0,
     }
-    term_repo_id = os.getenv("TENCENT_TERM_REPO_ID", "").strip()
     if term_repo_id:
         payload_data["TermRepoIDList"] = [term_repo_id]
     payload = json.dumps(

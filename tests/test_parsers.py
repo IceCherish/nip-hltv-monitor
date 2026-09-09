@@ -24,6 +24,7 @@ from nip_monitor.sources import (
     parse_results,
     parse_transfers,
     parse_upcoming_match_links,
+    get_news,
 )
 from nip_monitor.translator import translate_article
 
@@ -89,6 +90,42 @@ class ParserTests(unittest.TestCase):
         request = mocked_urlopen.call_args.args[0]
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["TermRepoIDList"], ["term-repo-id"])
+        self.assertEqual(payload["Source"], "en")
+
+    def test_auto_translation_uses_tencent_safe_chunk_size(self):
+        environment = {
+            "TRANSLATE_ENABLED": "true",
+            "TRANSLATE_PROVIDER": "auto",
+            "TENCENT_SECRET_ID": "test-id",
+            "TENCENT_SECRET_KEY": "test-key",
+        }
+        text = "a" * 2500
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator, "_translate_tencent", side_effect=lambda chunk, timeout: chunk
+        ) as tencent, patch.object(translator, "_translate_google") as google:
+            self.assertEqual(translator.translate_text(text, attempts=1), text)
+
+        self.assertEqual(tencent.call_count, 2)
+        self.assertTrue(
+            all(len(call.args[0]) <= 1800 for call in tencent.call_args_list)
+        )
+        google.assert_not_called()
+
+    def test_news_feed_uses_short_cache_tolerance(self):
+        feed = """Markdown Content:
+### [Fresh news](https://www.hltv.org/news/1/fresh-news)
+
+Description.
+
+Wed, 9 Sep 2026 12:42:00 GMT
+"""
+        with patch(
+            "nip_monitor.sources.fetch_via_reader", return_value=feed
+        ) as fetch:
+            self.assertEqual(get_news()[0].news_id, "1")
+
+        fetch.assert_called_once()
+        self.assertEqual(fetch.call_args.kwargs["cache_tolerance"], 60)
 
 
     def test_article_image_failure_keeps_all_text(self):

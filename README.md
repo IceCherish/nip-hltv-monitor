@@ -175,7 +175,7 @@ GitHub Actions 中有两个独立工作流：“NIP 手动测试”用于你点�
 
 `TRANSLATE_PROVIDER=auto` 时，配置腾讯云密钥后会先用腾讯云机器翻译；腾讯额度用尽、鉴权失败或接口异常时自动切换到 Google 免费非官方端点。没有配置腾讯密钥时直接使用 Google。腾讯密钥只存 GitHub Actions Secrets。
 
-可选的 `TENCENT_TERM_REPO_ID` 用于指定腾讯云英译中术语库。填写后，每次腾讯翻译请求都会携带该术语库 ID；Google 备用翻译不使用腾讯术语库。
+可选的 `TENCENT_TERM_REPO_ID` 用于指定腾讯云英译中术语库。填写后，每次腾讯翻译请求都会明确按英文翻译为中文并携带该术语库 ID；Google 备用翻译不使用腾讯术语库。运行记录会显示本篇实际使用了腾讯云还是 Google。为兼容腾讯接口限制，启用腾讯云时每段最多 1800 字符。
 
 中继请求带 Unix 时间戳、随机 nonce 和 HMAC-SHA256 签名；超过 5 分钟、重复 nonce、错误签名、总请求超过 6 MiB 或图片超过 4 MiB 会被拒绝。签名能验证来源并防篡改；使用 cpolar 时应优先选择 HTTPS 地址。
 

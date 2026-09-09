@@ -28,6 +28,7 @@ def fetch_via_reader(
     attempts: int = 3,
     timeout: int = 60,
     *,
+    cache_tolerance: int = 300,
     response_format: str = "markdown",
     selector: str = "",
 ) -> str:
@@ -35,7 +36,7 @@ def fetch_via_reader(
         "User-Agent": "nip-hltv-monitor/1.0 (personal, non-commercial monitor)",
         "Accept": "text/plain",
         "X-Respond-With": response_format,
-        "X-Cache-Tolerance": "300",
+        "X-Cache-Tolerance": str(cache_tolerance),
         "X-Timeout": "45",
     }
     if selector:
@@ -402,7 +403,7 @@ def _strip_markdown_links(text: str) -> str:
 
 
 def get_news() -> list[NewsItem]:
-    return parse_news(fetch_via_reader(HLTV_NEWS_RSS))
+    return parse_news(fetch_via_reader(HLTV_NEWS_RSS, cache_tolerance=60))
 
 
 def get_nip_data() -> tuple[list[Match], list[Result], list[Transfer]]:
