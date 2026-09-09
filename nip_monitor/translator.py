@@ -110,8 +110,17 @@ def _translate_tencent(text: str, timeout: int) -> str:
     action = "TextTranslate"
     timestamp = int(time.time())
     date = datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%d")
+    payload_data: dict[str, object] = {
+        "SourceText": text,
+        "Source": "auto",
+        "Target": "zh",
+        "ProjectId": 0,
+    }
+    term_repo_id = os.getenv("TENCENT_TERM_REPO_ID", "").strip()
+    if term_repo_id:
+        payload_data["TermRepoIDList"] = [term_repo_id]
     payload = json.dumps(
-        {"SourceText": text, "Source": "auto", "Target": "zh", "ProjectId": 0},
+        payload_data,
         ensure_ascii=False,
         separators=(",", ":"),
     ).encode("utf-8")

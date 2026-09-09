@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+import json
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from nip_monitor import translator
 from nip_monitor.app import _schedule_overview_message
@@ -66,6 +67,29 @@ class ParserTests(unittest.TestCase):
 
         tencent.assert_called_once()
         google.assert_called_once()
+
+    def test_tencent_translation_sends_configured_term_repository(self):
+        environment = {
+            "TENCENT_SECRET_ID": "test-id",
+            "TENCENT_SECRET_KEY": "test-key",
+            "TENCENT_TERM_REPO_ID": "term-repo-id",
+        }
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'{"Response":{"TargetText":"translated"}}'
+        )
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator, "urlopen", return_value=response
+        ) as mocked_urlopen:
+            self.assertEqual(
+                translator._translate_tencent("hello", timeout=30),
+                "translated",
+            )
+
+        request = mocked_urlopen.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(payload["TermRepoIDList"], ["term-repo-id"])
+
 
     def test_article_image_failure_keeps_all_text(self):
         article = Article(

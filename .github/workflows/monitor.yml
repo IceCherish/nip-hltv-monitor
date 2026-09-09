@@ -44,6 +44,7 @@ jobs:
           TENCENT_SECRET_ID: ${{ secrets.TENCENT_SECRET_ID }}
           TENCENT_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}
           TENCENT_REGION: ${{ vars.TENCENT_REGION || 'ap-beijing' }}
+          TENCENT_TERM_REPO_ID: ${{ vars.TENCENT_TERM_REPO_ID }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           NTFY_SERVER: ${{ vars.NTFY_SERVER || 'https://ntfy.sh' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
