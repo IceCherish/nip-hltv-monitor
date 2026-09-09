@@ -2,14 +2,6 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-09-09",
   "matches": {
-    "2397862": {
-      "event": "Thunderpick World Championship 2026 Closed Qualifier",
-      "match_id": "2397862",
-      "opponent": "FOKUS",
-      "signature": "FOKUS|Thunderpick World Championship 2026 Closed Qualifier|2026-09-09T17:20:00Z",
-      "start_at": "2026-09-09T17:20:00Z",
-      "url": "https://www.hltv.org/matches/2397862/ninjas-in-pyjamas-vs-fokus-thunderpick-world-championship-2026-closed-qualifier"
-    },
     "2397886": {
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397886",
@@ -73,6 +65,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-09T17:15:22.112342Z",
+  "updated_at": "2026-09-09T17:30:31.075988Z",
   "version": 1
 }
