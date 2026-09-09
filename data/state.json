@@ -17,6 +17,46 @@
       "signature": "FOKUS|Thunderpick World Championship 2026 Closed Qualifier|2026-09-09T17:00:00Z",
       "start_at": "2026-09-09T17:00:00Z",
       "url": "https://www.hltv.org/matches/2397862/ninjas-in-pyjamas-vs-fokus-thunderpick-world-championship-2026-closed-qualifier"
+    },
+    "2397886": {
+      "event": "Logitech G Play Connect 2026",
+      "match_id": "2397886",
+      "opponent": "M80",
+      "signature": "M80|Logitech G Play Connect 2026|2026-09-17T09:00:00Z",
+      "start_at": "2026-09-17T09:00:00Z",
+      "url": "https://www.hltv.org/matches/2397886/ninjas-in-pyjamas-vs-m80-logitech-g-play-connect-2026"
+    },
+    "2397891": {
+      "event": "Logitech G Play Connect 2026",
+      "match_id": "2397891",
+      "opponent": "B8",
+      "signature": "B8|Logitech G Play Connect 2026|2026-09-17T11:00:00Z",
+      "start_at": "2026-09-17T11:00:00Z",
+      "url": "https://www.hltv.org/matches/2397891/ninjas-in-pyjamas-vs-b8-logitech-g-play-connect-2026"
+    },
+    "2397893": {
+      "event": "Logitech G Play Connect 2026",
+      "match_id": "2397893",
+      "opponent": "Metizport",
+      "signature": "Metizport|Logitech G Play Connect 2026|2026-09-17T12:00:00Z",
+      "start_at": "2026-09-17T12:00:00Z",
+      "url": "https://www.hltv.org/matches/2397893/metizport-vs-ninjas-in-pyjamas-logitech-g-play-connect-2026"
+    },
+    "2397894": {
+      "event": "Logitech G Play Connect 2026",
+      "match_id": "2397894",
+      "opponent": "GamerLegion",
+      "signature": "GamerLegion|Logitech G Play Connect 2026|2026-09-17T13:00:00Z",
+      "start_at": "2026-09-17T13:00:00Z",
+      "url": "https://www.hltv.org/matches/2397894/gamerlegion-vs-ninjas-in-pyjamas-logitech-g-play-connect-2026"
+    },
+    "2397898": {
+      "event": "Logitech G Play Connect 2026",
+      "match_id": "2397898",
+      "opponent": "Luminosity",
+      "signature": "Luminosity|Logitech G Play Connect 2026|2026-09-17T15:00:00Z",
+      "start_at": "2026-09-17T15:00:00Z",
+      "url": "https://www.hltv.org/matches/2397898/luminosity-vs-ninjas-in-pyjamas-logitech-g-play-connect-2026"
     }
   },
   "news_ids": [
@@ -40,6 +80,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-09T12:53:33.353025Z",
+  "updated_at": "2026-09-09T13:00:41.578407Z",
   "version": 1
 }
