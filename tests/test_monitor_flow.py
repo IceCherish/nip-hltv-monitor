@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from nip_monitor import app
-from nip_monitor.models import Match, NewsItem, Result
+from nip_monitor.models import Match, NewsItem, Result, Transfer
 
 
 class MonitorFlowTests(unittest.TestCase):
@@ -137,6 +137,54 @@ class MonitorFlowTests(unittest.TestCase):
                 "fresh-then-stale",
                 app.load_state(self.state_path)["news_ids"],
             )
+
+    def test_transfer_older_than_one_day_is_skipped_and_remembered(self):
+        app.save_state(
+            self.state_path,
+            {
+                "initialized": True,
+                "last_daily_schedule_date": "2026-09-09",
+                "news_ids": [item.news_id for item in self.news],
+            },
+        )
+        old_transfer = Transfer(
+            "changed-old-transfer",
+            "Krimbo joins Ninjas in Pyjamas on loan from BIG",
+            "Sep 1st 2026",
+        )
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
+            nip_data.return_value = (self.matches, self.results, [old_transfer])
+            app.run_monitor(datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc))
+
+        deliver.assert_not_called()
+        deliver_article.assert_not_called()
+        self.assertIn(
+            "changed-old-transfer",
+            app.load_state(self.state_path)["transfer_ids"],
+        )
+
+    def test_yesterdays_transfer_can_still_be_sent(self):
+        app.save_state(
+            self.state_path,
+            {
+                "initialized": True,
+                "last_daily_schedule_date": "2026-09-09",
+                "news_ids": [item.news_id for item in self.news],
+            },
+        )
+        recent_transfer = Transfer(
+            "recent-transfer",
+            "Player joins Ninjas in Pyjamas",
+            "Sep 8th 2026",
+        )
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7]:
+            nip_data.return_value = (self.matches, self.results, [recent_transfer])
+            app.run_monitor(datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc))
+
+        self.assertEqual(deliver.call_count, 1)
+        self.assertEqual(deliver.call_args.args[0], "🔁 NIP 阵容动态")
 
     def test_daily_schedule_is_sent_once_after_ten_beijing_time(self):
         patches = self._patch_monitor()

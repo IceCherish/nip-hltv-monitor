@@ -19,6 +19,21 @@ STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 7
 NEWS_MAX_AGE = timedelta(hours=1)
+TRANSFER_MAX_AGE_DAYS = 1
+MONTH_NUMBERS = {
+    "Jan": 1,
+    "Feb": 2,
+    "Mar": 3,
+    "Apr": 4,
+    "May": 5,
+    "Jun": 6,
+    "Jul": 7,
+    "Aug": 8,
+    "Sep": 9,
+    "Oct": 10,
+    "Nov": 11,
+    "Dec": 12,
+}
 
 
 def _load_local_env(path: Path) -> None:
@@ -71,6 +86,23 @@ def _news_is_expired(item: NewsItem, now: datetime) -> bool:
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     return now.astimezone(timezone.utc) - published_at.astimezone(timezone.utc) > NEWS_MAX_AGE
+
+
+def _transfer_is_expired(item: Transfer, now: datetime) -> bool:
+    match = re.fullmatch(
+        r"([A-Z][a-z]{2}) (\d{1,2})(?:st|nd|rd|th) (\d{4})",
+        item.date.strip(),
+    )
+    if not match or match.group(1) not in MONTH_NUMBERS:
+        return False
+    transfer_date = datetime(
+        int(match.group(3)),
+        MONTH_NUMBERS[match.group(1)],
+        int(match.group(2)),
+        tzinfo=SHANGHAI,
+    ).date()
+    current_date = now.astimezone(SHANGHAI).date()
+    return (current_date - transfer_date).days > TRANSFER_MAX_AGE_DAYS
 
 
 def _upcoming_matches_within(
@@ -217,8 +249,22 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         ]
 
         known_transfers = set(state["transfer_ids"])
+        unseen_transfers = [
+            item for item in reversed(transfers)
+            if item.transfer_id not in known_transfers
+        ]
+        expired_transfers = [
+            item for item in unseen_transfers if _transfer_is_expired(item, now)
+        ]
+        if expired_transfers:
+            print(
+                "已跳过超过 1 天的阵容动态："
+                + ", ".join(item.transfer_id for item in expired_transfers)
+            )
         notifications.extend(
-            _transfer_message(item) for item in reversed(transfers) if item.transfer_id not in known_transfers
+            _transfer_message(item)
+            for item in unseen_transfers
+            if not _transfer_is_expired(item, now)
         )
 
     schedule_sent = schedule_needed and bool(schedule_matches)
