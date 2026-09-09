@@ -16,6 +16,7 @@ from .translator import TranslationError, translate_article
 ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
+DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 7
 
 
 def _load_local_env(path: Path) -> None:
@@ -54,6 +55,20 @@ def _latest_event_results(results: list[Result]) -> list[Result]:
         return []
     event = results[0].event
     return [result for result in results if result.event == event]
+
+
+def _upcoming_matches_within(
+    matches: list[Match], now: datetime, days: int
+) -> list[Match]:
+    if days < 0:
+        raise ValueError("SCHEDULE_LOOKAHEAD_DAYS 不能小于 0")
+    deadline = now + timedelta(days=days)
+    return [
+        match
+        for match in matches
+        if match.start_datetime is not None
+        and now <= match.start_datetime <= deadline
+    ]
 
 
 def _distance_to_match(match: Match, now: datetime) -> str:
@@ -138,6 +153,9 @@ def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
 def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) -> int:
     now = now or datetime.now(timezone.utc)
     reminder_minutes = int(os.getenv("REMINDER_MINUTES", "30"))
+    schedule_lookahead_days = int(
+        os.getenv("SCHEDULE_LOOKAHEAD_DAYS", str(DEFAULT_SCHEDULE_LOOKAHEAD_DAYS))
+    )
     news_mode = os.getenv("NEWS_MODE", "all").strip().lower()
     if news_mode not in {"all", "off"}:
         raise ValueError("NEWS_MODE 只能是 all 或 off")
@@ -148,6 +166,9 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
 
     news = [] if news_mode == "off" else get_news()
     matches, results, transfers = get_nip_data()
+    schedule_matches = _upcoming_matches_within(
+        matches, now, schedule_lookahead_days
+    )
     recent_results = _latest_event_results(results)
     state = load_state(STATE_PATH)
     notifications: list[tuple[str, str]] = []
@@ -173,8 +194,11 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             _transfer_message(item) for item in reversed(transfers) if item.transfer_id not in known_transfers
         )
 
-    if schedule_needed:
-        notifications.append(_schedule_overview_message(matches, recent_results, now))
+    schedule_sent = schedule_needed and bool(schedule_matches)
+    if schedule_sent:
+        notifications.append(
+            _schedule_overview_message(schedule_matches, recent_results, now)
+        )
 
     sent_reminders = set(state["sent_reminders"])
     for match in matches:
@@ -202,7 +226,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         sent_article_count += 1
 
     last_daily_schedule_date = state.get("last_daily_schedule_date", "")
-    if schedule_needed:
+    if schedule_sent:
         last_daily_schedule_date = today
     next_values = {
         "initialized": True,
@@ -223,7 +247,12 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     state.update(next_values)
     save_state(STATE_PATH, state)
     message_count = len(notifications) + sent_article_count
-    print(f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，最近赛事赛果 {len(recent_results)} 场，阵容动态 {len(transfers)} 条，新消息 {message_count} 条。")
+    print(
+        f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，"
+        f"{schedule_lookahead_days} 天内比赛 {len(schedule_matches)} 场，"
+        f"最近赛事赛果 {len(recent_results)} 场，"
+        f"阵容动态 {len(transfers)} 条，新消息 {message_count} 条。"
+    )
     return 0
 
 

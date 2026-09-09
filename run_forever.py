@@ -11,7 +11,7 @@ from nip_monitor.app import run_monitor
 
 
 def run() -> None:
-    interval = max(60, int(os.getenv("CHECK_INTERVAL_SECONDS", "360")))
+    interval = max(60, int(os.getenv("CHECK_INTERVAL_SECONDS", "900")))
     print(f"常驻监控已启动，每 {interval} 秒检查一次。")
     first_run = True
     while True:

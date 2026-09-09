@@ -163,6 +163,54 @@ class MonitorFlowTests(unittest.TestCase):
             deliver.assert_not_called()
             deliver_article.assert_not_called()
 
+    def test_schedule_waits_until_a_match_is_within_seven_days(self):
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
+            far_match = Match(
+                "match-far",
+                "Vitality",
+                "https://example.test/match-far",
+                "Future Event",
+                "2026-09-20T07:00:00Z",
+            )
+            nip_data.return_value = ([far_match], self.results, [])
+            app.run_monitor(datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc))
+
+            deliver.assert_not_called()
+            self.assertEqual(
+                app.load_state(self.state_path)["last_daily_schedule_date"], ""
+            )
+
+            deliver.reset_mock()
+            deliver_article.reset_mock()
+            nip_data.return_value = (self.matches, self.results, [])
+            app.run_monitor(datetime(2026, 9, 8, 3, 15, tzinfo=timezone.utc))
+
+            self.assertEqual(deliver.call_count, 1)
+            self.assertIn("NIP vs HEROIC", deliver.call_args.args[1])
+            self.assertEqual(
+                app.load_state(self.state_path)["last_daily_schedule_date"],
+                "2026-09-08",
+            )
+
+    def test_schedule_message_excludes_matches_beyond_seven_days(self):
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7]:
+            far_match = Match(
+                "match-far",
+                "Vitality",
+                "https://example.test/match-far",
+                "Future Event",
+                "2026-09-20T07:00:00Z",
+            )
+            nip_data.return_value = (self.matches + [far_match], self.results, [])
+            app.run_monitor(datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc))
+
+            self.assertEqual(deliver.call_count, 1)
+            rendered = deliver.call_args.args[1]
+            self.assertIn("NIP vs HEROIC", rendered)
+            self.assertNotIn("NIP vs Vitality", rendered)
+
     def test_external_dispatch_is_treated_as_scheduled_check(self):
         environment = {
             "GITHUB_ACTIONS": "true",
