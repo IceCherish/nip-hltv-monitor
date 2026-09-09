@@ -30,7 +30,7 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
     if provider not in {"auto", "google", "tencent"}:
         raise TranslationError("TRANSLATE_PROVIDER 只能是 auto、google 或 tencent")
     providers = (
-        ["google", "tencent"]
+        ["tencent", "google"]
         if provider == "auto" and _has_tencent_credentials()
         else ["google"]
         if provider == "auto"
@@ -39,26 +39,39 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
     translated: list[str] = []
     for chunk in _chunks(text):
         errors: list[str] = []
+        translated_chunk: str | None = None
         for current_provider in providers:
             last_error: Exception | None = None
             for attempt in range(1, attempts + 1):
                 try:
-                    translated.append(
+                    translated_chunk = (
                         _translate_tencent(chunk, timeout)
                         if current_provider == "tencent"
                         else _translate_google(chunk, timeout)
                     )
                     break
-                except (HTTPError, URLError, TimeoutError, ValueError, TypeError, IndexError) as exc:
+                except (
+                    HTTPError,
+                    URLError,
+                    TimeoutError,
+                    ValueError,
+                    TypeError,
+                    IndexError,
+                    TranslationError,
+                ) as exc:
                     last_error = exc
+                    if isinstance(exc, TranslationError) or (
+                        isinstance(exc, HTTPError) and exc.code == 429
+                    ):
+                        break
                     if attempt < attempts:
                         time.sleep(2 ** (attempt - 1))
-            else:
-                errors.append(f"{current_provider}: {last_error}")
-                continue
-            break
-        else:
+            if translated_chunk is not None:
+                break
+            errors.append(f"{current_provider}: {last_error}")
+        if translated_chunk is None:
             raise TranslationError("All translation providers failed: " + "; ".join(errors))
+        translated.append(translated_chunk)
     return "".join(translated).strip()
 
 

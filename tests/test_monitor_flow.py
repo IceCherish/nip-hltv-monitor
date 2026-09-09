@@ -107,6 +107,37 @@ class MonitorFlowTests(unittest.TestCase):
             retried_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
             self.assertEqual(retried_ids, ["6"])
 
+    def test_failed_news_is_not_retried_after_one_hour(self):
+        self.news = [
+            NewsItem(
+                "fresh-then-stale",
+                "news",
+                "",
+                "https://example.test/news",
+                "Tue, 8 Sep 2026 09:30:00 GMT",
+            )
+        ]
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5] as translate, patches[6], patches[7] as deliver_article:
+            translate.side_effect = app.TranslationError("providers unavailable")
+            app.run_monitor(datetime(2026, 9, 8, 9, 45, tzinfo=timezone.utc))
+
+            self.assertEqual(translate.call_count, 1)
+            deliver_article.assert_not_called()
+            self.assertNotIn(
+                "fresh-then-stale",
+                app.load_state(self.state_path)["news_ids"],
+            )
+
+            translate.reset_mock()
+            app.run_monitor(datetime(2026, 9, 8, 10, 31, tzinfo=timezone.utc))
+
+            translate.assert_not_called()
+            self.assertIn(
+                "fresh-then-stale",
+                app.load_state(self.state_path)["news_ids"],
+            )
+
     def test_daily_schedule_is_sent_once_after_ten_beijing_time(self):
         patches = self._patch_monitor()
         with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:

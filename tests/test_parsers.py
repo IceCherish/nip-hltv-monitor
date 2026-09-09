@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
+import os
 import unittest
 from unittest.mock import patch
 
+from nip_monitor import translator
 from nip_monitor.app import _schedule_overview_message
 from nip_monitor.articles import Article, ArticleBlock, ArticleMatch, parse_article_html
 from nip_monitor.models import Match, NewsItem, Result
@@ -26,6 +28,45 @@ from nip_monitor.translator import translate_article
 
 
 class ParserTests(unittest.TestCase):
+    def test_auto_translation_uses_tencent_before_google(self):
+        environment = {
+            "TRANSLATE_ENABLED": "true",
+            "TRANSLATE_PROVIDER": "auto",
+            "TENCENT_SECRET_ID": "test-id",
+            "TENCENT_SECRET_KEY": "test-key",
+        }
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator, "_translate_tencent", return_value="腾讯结果"
+        ) as tencent, patch.object(
+            translator, "_translate_google", return_value="谷歌结果"
+        ) as google:
+            self.assertEqual(translator.translate_text("hello", attempts=1), "腾讯结果")
+
+        tencent.assert_called_once()
+        google.assert_not_called()
+
+    def test_auto_translation_falls_back_to_google_on_tencent_api_error(self):
+        environment = {
+            "TRANSLATE_ENABLED": "true",
+            "TRANSLATE_PROVIDER": "auto",
+            "TENCENT_SECRET_ID": "test-id",
+            "TENCENT_SECRET_KEY": "test-key",
+        }
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator,
+            "_translate_tencent",
+            side_effect=translator.TranslationError("quota exceeded"),
+        ) as tencent, patch.object(
+            translator, "_translate_google", return_value="谷歌备用结果"
+        ) as google:
+            self.assertEqual(
+                translator.translate_text("hello", attempts=3),
+                "谷歌备用结果",
+            )
+
+        tencent.assert_called_once()
+        google.assert_called_once()
+
     def test_article_image_failure_keeps_all_text(self):
         article = Article(
             title="Title",

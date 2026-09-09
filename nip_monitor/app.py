@@ -4,6 +4,7 @@ import argparse
 import os
 import re
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from .articles import get_article
@@ -17,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 7
+NEWS_MAX_AGE = timedelta(hours=1)
 
 
 def _load_local_env(path: Path) -> None:
@@ -55,6 +57,20 @@ def _latest_event_results(results: list[Result]) -> list[Result]:
         return []
     event = results[0].event
     return [result for result in results if result.event == event]
+
+
+def _news_is_expired(item: NewsItem, now: datetime) -> bool:
+    if not item.published_at:
+        return False
+    try:
+        published_at = parsedate_to_datetime(item.published_at)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(timezone.utc) - published_at.astimezone(timezone.utc) > NEWS_MAX_AGE
 
 
 def _upcoming_matches_within(
@@ -151,6 +167,7 @@ def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
 
 
 def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) -> int:
+    fixed_now = now is not None
     now = now or datetime.now(timezone.utc)
     reminder_minutes = int(os.getenv("REMINDER_MINUTES", "30"))
     schedule_lookahead_days = int(
@@ -173,6 +190,17 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     state = load_state(STATE_PATH)
     notifications: list[tuple[str, str]] = []
     news_to_send: list[NewsItem] = []
+    eligible_news = [item for item in news if not _news_is_expired(item, now)]
+    known_news = set(state["news_ids"])
+    newly_expired_news = [
+        item for item in news
+        if item.news_id not in known_news and _news_is_expired(item, now)
+    ]
+    if newly_expired_news:
+        print(
+            "已跳过超过 1 小时的新闻："
+            + ", ".join(item.news_id for item in newly_expired_news)
+        )
     local_now = now.astimezone(SHANGHAI)
     today = local_now.date().isoformat()
     daily_schedule_due = (
@@ -182,11 +210,10 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     schedule_needed = force_schedule or daily_schedule_due or not state["initialized"]
 
     if not state["initialized"]:
-        news_to_send = list(reversed(news[:2]))
+        news_to_send = list(reversed(eligible_news[:2]))
     else:
-        known_news = set(state["news_ids"])
         news_to_send = [
-            item for item in reversed(news) if item.news_id not in known_news
+            item for item in reversed(eligible_news) if item.news_id not in known_news
         ]
 
         known_transfers = set(state["transfer_ids"])
@@ -221,6 +248,10 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         except (SourceError, TranslationError) as exc:
             failed_news_ids.add(item.news_id)
             print(f"新闻 {item.news_id} 本轮暂缓，下次检查重试：{exc}")
+            continue
+        delivery_now = now if fixed_now else datetime.now(timezone.utc)
+        if _news_is_expired(item, delivery_now):
+            print(f"新闻 {item.news_id} 翻译完成时已超过 1 小时，已跳过。")
             continue
         deliver_article(_news_label(item), article, notifiers)
         sent_article_count += 1
