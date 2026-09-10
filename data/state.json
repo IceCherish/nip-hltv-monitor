@@ -2,14 +2,6 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-09-10",
   "matches": {
-    "2397769": {
-      "event": "PGL Masters Bucharest 2026 Europe Closed Qualifier",
-      "match_id": "2397769",
-      "opponent": "Inner Circle",
-      "signature": "Inner Circle|PGL Masters Bucharest 2026 Europe Closed Qualifier|2026-09-10T11:10:00Z",
-      "start_at": "2026-09-10T11:10:00Z",
-      "url": "https://www.hltv.org/matches/2397769/ninjas-in-pyjamas-vs-inner-circle-pgl-masters-bucharest-2026-europe-closed-qualifier"
-    },
     "2397869": {
       "event": "Thunderpick World Championship 2026 Closed Qualifier",
       "match_id": "2397869",
@@ -82,6 +74,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-10T11:00:37.613571Z",
+  "updated_at": "2026-09-10T11:15:23.878687Z",
   "version": 1
 }
