@@ -1,0 +1,49 @@
+name: Isolated Tencent glossary diagnostic
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/glossary-diagnostic.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read project
+        uses: actions/checkout@v4
+      - name: Prepare Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compare Tencent translation with and without glossary
+        env:
+          TENCENT_SECRET_ID: ${{ secrets.TENCENT_SECRET_ID }}
+          TENCENT_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}
+          TENCENT_REGION: ${{ vars.TENCENT_REGION || 'ap-beijing' }}
+          TENCENT_TERM_REPO_ID: ${{ vars.TENCENT_TERM_REPO_ID }}
+        run: |
+          python - <<'PY'
+          import os
+          from nip_monitor.translator import _translate_tencent
+
+          source = "Ancient is the final map. The match will be played on Ancient. They selected Ancient as the last map."
+          expected = "9b3b5db4ac2d11f18bb32f3360e0816a"
+          repo_id = os.environ.get("TENCENT_TERM_REPO_ID", "").strip()
+          print(f"GLOSSARY_CONFIGURED={bool(repo_id)}")
+          print(f"GLOSSARY_ID_MATCH_EXPECTED={repo_id == expected}")
+
+          os.environ.pop("TENCENT_TERM_REPO_ID", None)
+          without_glossary = _translate_tencent(source, timeout=30)
+          print("WITHOUT_GLOSSARY=" + without_glossary)
+
+          if repo_id:
+              os.environ["TENCENT_TERM_REPO_ID"] = repo_id
+              with_glossary = _translate_tencent(source, timeout=30)
+              print("WITH_GLOSSARY=" + with_glossary)
+          else:
+              print("WITH_GLOSSARY=SKIPPED_MISSING_REPOSITORY_VARIABLE")
+          PY
