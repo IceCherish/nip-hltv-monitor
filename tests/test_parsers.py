@@ -31,6 +31,29 @@ from nip_monitor.translator import translate_article
 
 
 class ParserTests(unittest.TestCase):
+    def test_groq_prompt_uses_only_user_configured_terms(self):
+        expected = {
+            "force-buy=强起局",
+            "anti-eco=反ECO局",
+            "troll=犯病",
+            "Mirage=荒漠迷城",
+            "Ancient=远古遗迹",
+            "Cache=叉车",
+            "Anubis=阿努比斯",
+            "Inferno=炼狱小镇",
+            "Nuke=核子危机",
+            "stavn=蛇",
+            "xKacpersky=卡爹斯基",
+            "sjuush=术士",
+            "Krimbo=坤宝",
+            "Ninjas in Pyjamas=废物NIP",
+            "Major=Major",
+            "IGL=指挥",
+        }
+        term_section = translator.GROQ_SYSTEM_PROMPT.split("只采用以下固定术语：", 1)[1].split("。不要自行添加", 1)[0]
+        actual = {item.strip() for item in term_section.split("；")}
+        self.assertEqual(actual, expected)
+
     def test_auto_translation_uses_groq_before_tencent_and_google(self):
         environment = {
             "TRANSLATE_ENABLED": "true",
