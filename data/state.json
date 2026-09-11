@@ -1,6 +1,6 @@
 {
   "initialized": true,
-  "last_daily_schedule_date": "2026-09-10",
+  "last_daily_schedule_date": "2026-09-11",
   "matches": {
     "2397875": {
       "event": "Thunderpick World Championship 2026 Closed Qualifier",
@@ -76,6 +76,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-10T21:00:40.763574Z",
+  "updated_at": "2026-09-11T02:00:35.121189Z",
   "version": 1
 }
