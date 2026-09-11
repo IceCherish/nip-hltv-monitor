@@ -21,21 +21,33 @@ class TranslationError(RuntimeError):
 
 GOOGLE_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
 TENCENT_TRANSLATE_URL = "https://tmt.tencentcloudapi.com"
+GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_DEFAULT_MODEL = "qwen/qwen3.8-27b"
+GROQ_SYSTEM_PROMPT = (
+    "你是专业的 CS2 电竞新闻翻译引擎。请把用户提供的英文完整翻译成自然、通顺、准确的简体中文。"
+    "不得总结、删减、解释或添加原文不存在的信息。选手 ID、战队名、比分、地图名、日期和时间必须保持准确。"
+    "必须原样保留 [[NIPHLTVSEGMENT0000]] 这类分段标记以及原有段落结构。"
+    "1v3 翻译为‘一打三’，4K 翻译为‘四杀’，entries 根据语境翻译为‘首杀’，"
+    "troll 根据语境翻译为‘犯病’，IGL 翻译为‘队内指挥’，CT side 翻译为‘防守方’，"
+    "T side 翻译为‘进攻方’。只输出翻译结果。"
+)
 
 
 def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
     if not text.strip() or os.getenv("TRANSLATE_ENABLED", "true").lower() in {"0", "false", "no"}:
         return text
     provider = os.getenv("TRANSLATE_PROVIDER", "auto").strip().lower()
-    if provider not in {"auto", "google", "tencent"}:
-        raise TranslationError("TRANSLATE_PROVIDER 只能是 auto、google 或 tencent")
-    providers = (
-        ["tencent", "google"]
-        if provider == "auto" and _has_tencent_credentials()
-        else ["google"]
-        if provider == "auto"
-        else [provider]
-    )
+    if provider not in {"auto", "groq", "google", "tencent"}:
+        raise TranslationError("TRANSLATE_PROVIDER 只能是 auto、groq、tencent 或 google")
+    if provider == "auto":
+        providers = []
+        if _has_groq_credentials():
+            providers.append("groq")
+        if _has_tencent_credentials():
+            providers.append("tencent")
+        providers.append("google")
+    else:
+        providers = [provider]
     chunk_limit = 1800 if "tencent" in providers else 3500
     translated: list[str] = []
     used_providers: list[str] = []
@@ -46,11 +58,12 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
             last_error: Exception | None = None
             for attempt in range(1, attempts + 1):
                 try:
-                    translated_chunk = (
-                        _translate_tencent(chunk, timeout)
-                        if current_provider == "tencent"
-                        else _translate_google(chunk, timeout)
-                    )
+                    if current_provider == "groq":
+                        translated_chunk = _translate_groq(chunk, timeout)
+                    elif current_provider == "tencent":
+                        translated_chunk = _translate_tencent(chunk, timeout)
+                    else:
+                        translated_chunk = _translate_google(chunk, timeout)
                     break
                 except (
                     HTTPError,
@@ -87,7 +100,50 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
 
 
 def _provider_label(provider: str) -> str:
+    if provider == "groq":
+        return "Groq Qwen"
     return "腾讯云" if provider == "tencent" else "Google"
+
+
+def _has_groq_credentials() -> bool:
+    return bool(os.getenv("GROQ_API_KEY", "").strip())
+
+
+def _translate_groq(text: str, timeout: int) -> str:
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise TranslationError("使用 Groq 翻译时需要 GROQ_API_KEY")
+    payload = json.dumps(
+        {
+            "model": os.getenv("GROQ_MODEL", GROQ_DEFAULT_MODEL).strip()
+            or GROQ_DEFAULT_MODEL,
+            "messages": [
+                {"role": "system", "content": GROQ_SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            "temperature": 0.1,
+            "max_completion_tokens": 4096,
+            "stream": False,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    request = Request(
+        os.getenv("GROQ_API_URL", GROQ_CHAT_URL),
+        data=payload,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "User-Agent": "nip-hltv-monitor/1.0",
+        },
+    )
+    with urlopen(request, timeout=timeout) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    result = data["choices"][0]["message"]["content"].strip()
+    if not result:
+        raise TranslationError("Groq Qwen 返回了空翻译")
+    return result
 
 
 def _translate_google(text: str, timeout: int) -> str:

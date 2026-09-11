@@ -28,7 +28,7 @@ QQ群
 - 第一次正式运行最多发送 1 小时内的最新 2 条新闻；之后按 HLTV 新闻编号去重，只发送 1 小时内的新增新闻
 - 每天北京时间 01:00（含）至 07:00（不含）为静默时段：不抓取、不发送新闻、赛程、阵容动态或赛前提醒，也不改动缓存
 - 本机直连 NapCat 与 GitHub → 国内服务器中继两种模式
-- 腾讯云机器翻译优先，额度用尽或接口失败时自动改用 Google 免费非官方翻译
+- Groq Qwen 优先，失败时依次改用腾讯云机器翻译和 Google 免费非官方翻译
 
 第一次正式运行依次发送当前近期赛程与最近赛事回顾、1 小时内的最新 2 条新闻，不额外发送启动说明。程序会把已经见过的 HLTV 新闻编号保存到 `data/state.json`，以后重复检查时不会再次发送；如果一次检查发现多条新新闻，会按从旧到新的顺序发送。每篇新闻的标题、前 10 段正文和赛事名会合并批量翻译，显著减少请求次数；某篇翻译临时失败时不会影响赛程或赛前提醒，发布时间未超过 1 小时时会在下次检查重试，超过 1 小时后永久跳过并记入去重记录。
 
@@ -162,6 +162,7 @@ systemctl status nip-relay
 
 - `RELAY_URL`：`http://服务器公网IP:8787/notify`
 - `RELAY_SECRET`：与服务器 `.env` 完全相同
+- `GROQ_API_KEY`：在 Groq 的 API Keys 页面创建并复制的密钥
 
 进入 `Settings → Actions → General → Workflow permissions`，选择 `Read and write permissions` 并保存，以便工作流更新 `data/state.json`。
 
@@ -178,9 +179,11 @@ cron-job.org 无需修改，继续保持每约 15 分钟触发即可。每天北
 
 ## 翻译与安全
 
-`TRANSLATE_PROVIDER=auto` 时，配置腾讯云密钥后会先用腾讯云机器翻译；腾讯额度用尽、鉴权失败或接口异常时自动切换到 Google 免费非官方端点。没有配置腾讯密钥时直接使用 Google。腾讯密钥只存 GitHub Actions Secrets。
+`TRANSLATE_PROVIDER=auto` 时，只要配置了 `GROQ_API_KEY`，就会先用 Groq 上的 Qwen 翻译；Groq 超时、限流、鉴权失败或接口异常时自动切换到腾讯云，腾讯也不可用时再使用 Google 免费非官方端点。没有配置某一家的密钥时会直接跳过该服务。所有密钥只存 GitHub Actions Secrets。
 
-可选的 `TENCENT_TERM_REPO_ID` 用于指定腾讯云英译中术语库。填写后，每次腾讯翻译请求都会明确按英文翻译为中文并携带该术语库 ID；Google 备用翻译不使用腾讯术语库。运行记录会显示本篇实际使用了腾讯云还是 Google。为兼容腾讯接口限制，启用腾讯云时每段最多 1800 字符。
+Groq 默认模型为 `qwen/qwen3.8-27b`，可用仓库变量 `GROQ_MODEL` 更换。程序不额外评价或重写模型译文，只检查接口是否成功返回可用文字；运行记录会显示本篇实际使用了 Groq Qwen、腾讯云还是 Google。
+
+可选的 `TENCENT_TERM_REPO_ID` 用于指定腾讯云英译中术语库。填写后，每次腾讯翻译请求都会明确按英文翻译为中文并携带该术语库 ID；Groq 和 Google 不使用腾讯术语库。为兼容腾讯接口限制，只要降级链中启用了腾讯云，每段最多 1800 字符。
 
 中继请求带 Unix 时间戳、随机 nonce 和 HMAC-SHA256 签名；超过 5 分钟、重复 nonce、错误签名、总请求超过 6 MiB 或图片超过 4 MiB 会被拒绝。签名能验证来源并防篡改；使用 cpolar 时应优先选择 HTTPS 地址。
 

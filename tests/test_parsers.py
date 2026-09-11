@@ -31,10 +31,78 @@ from nip_monitor.translator import translate_article
 
 
 class ParserTests(unittest.TestCase):
+    def test_auto_translation_uses_groq_before_tencent_and_google(self):
+        environment = {
+            "TRANSLATE_ENABLED": "true",
+            "TRANSLATE_PROVIDER": "auto",
+            "GROQ_API_KEY": "test-groq-key",
+            "TENCENT_SECRET_ID": "test-id",
+            "TENCENT_SECRET_KEY": "test-key",
+        }
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator, "_translate_groq", return_value="Qwen结果"
+        ) as groq, patch.object(
+            translator, "_translate_tencent", return_value="腾讯结果"
+        ) as tencent, patch.object(
+            translator, "_translate_google", return_value="谷歌结果"
+        ) as google:
+            self.assertEqual(translator.translate_text("hello", attempts=1), "Qwen结果")
+
+        groq.assert_called_once()
+        tencent.assert_not_called()
+        google.assert_not_called()
+
+    def test_auto_translation_falls_back_from_groq_to_tencent(self):
+        environment = {
+            "TRANSLATE_ENABLED": "true",
+            "TRANSLATE_PROVIDER": "auto",
+            "GROQ_API_KEY": "test-groq-key",
+            "TENCENT_SECRET_ID": "test-id",
+            "TENCENT_SECRET_KEY": "test-key",
+        }
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator,
+            "_translate_groq",
+            side_effect=translator.TranslationError("rate limited"),
+        ) as groq, patch.object(
+            translator, "_translate_tencent", return_value="腾讯备用结果"
+        ) as tencent, patch.object(
+            translator, "_translate_google", return_value="谷歌备用结果"
+        ) as google:
+            self.assertEqual(
+                translator.translate_text("hello", attempts=3),
+                "腾讯备用结果",
+            )
+
+        groq.assert_called_once()
+        tencent.assert_called_once()
+        google.assert_not_called()
+
+    def test_groq_translation_sends_configured_model_and_prompt(self):
+        environment = {
+            "GROQ_API_KEY": "test-groq-key",
+            "GROQ_MODEL": "qwen/test-model",
+        }
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'{"choices":[{"message":{"content":"translated"}}]}'
+        )
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator, "urlopen", return_value=response
+        ) as mocked_urlopen:
+            self.assertEqual(translator._translate_groq("hello", timeout=30), "translated")
+
+        request = mocked_urlopen.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(payload["model"], "qwen/test-model")
+        self.assertEqual(payload["messages"][1]["content"], "hello")
+        self.assertIn("Bearer test-groq-key", request.headers.values())
+
     def test_auto_translation_uses_tencent_before_google(self):
         environment = {
             "TRANSLATE_ENABLED": "true",
             "TRANSLATE_PROVIDER": "auto",
+            "GROQ_API_KEY": "",
             "TENCENT_SECRET_ID": "test-id",
             "TENCENT_SECRET_KEY": "test-key",
         }
@@ -52,6 +120,7 @@ class ParserTests(unittest.TestCase):
         environment = {
             "TRANSLATE_ENABLED": "true",
             "TRANSLATE_PROVIDER": "auto",
+            "GROQ_API_KEY": "",
             "TENCENT_SECRET_ID": "test-id",
             "TENCENT_SECRET_KEY": "test-key",
         }
@@ -97,6 +166,7 @@ class ParserTests(unittest.TestCase):
         environment = {
             "TRANSLATE_ENABLED": "true",
             "TRANSLATE_PROVIDER": "auto",
+            "GROQ_API_KEY": "",
             "TENCENT_SECRET_ID": "test-id",
             "TENCENT_SECRET_KEY": "test-key",
         }
