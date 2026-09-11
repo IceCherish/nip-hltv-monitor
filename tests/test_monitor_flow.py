@@ -324,5 +324,108 @@ class MonitorFlowTests(unittest.TestCase):
         run_monitor.assert_called_once_with(force_schedule=False)
 
 
+    def test_quiet_hours_skip_fetch_send_and_state_changes(self):
+        app.save_state(
+            self.state_path,
+            {
+                "initialized": True,
+                "news_ids": ["already-seen"],
+                "sent_reminders": ["old-reminder"],
+                "last_daily_schedule_date": "2026-09-08",
+            },
+        )
+        state_before = app.load_state(self.state_path)
+        patches = self._patch_monitor()
+        with (
+            patches[0],
+            patches[1] as configured,
+            patches[2] as get_news,
+            patches[3] as get_nip_data,
+            patches[4] as get_article,
+            patches[5] as translate,
+            patches[6] as deliver,
+            patches[7] as deliver_article,
+        ):
+            result = app.run_monitor(
+                datetime(2026, 9, 10, 18, 0, tzinfo=timezone.utc),
+                force_schedule=True,
+            )
+
+        self.assertEqual(result, 0)
+        configured.assert_not_called()
+        get_news.assert_not_called()
+        get_nip_data.assert_not_called()
+        get_article.assert_not_called()
+        translate.assert_not_called()
+        deliver.assert_not_called()
+        deliver_article.assert_not_called()
+        self.assertEqual(app.load_state(self.state_path), state_before)
+
+    def test_seven_am_resumes_but_does_not_send_two_hour_old_news(self):
+        self.news = [
+            NewsItem(
+                "overnight-news",
+                "overnight news",
+                "",
+                "https://example.test/overnight-news",
+                "Thu, 10 Sep 2026 21:00:00 GMT",
+            )
+        ]
+        app.save_state(
+            self.state_path,
+            {
+                "initialized": True,
+                "news_ids": [],
+                "last_daily_schedule_date": "2026-09-10",
+            },
+        )
+        patches = self._patch_monitor()
+        with (
+            patches[0],
+            patches[1],
+            patches[2],
+            patches[3] as nip_data,
+            patches[4] as get_article,
+            patches[5] as translate,
+            patches[6] as deliver,
+            patches[7] as deliver_article,
+        ):
+            nip_data.return_value = ([], self.results, [])
+            result = app.run_monitor(
+                datetime(2026, 9, 10, 23, 0, tzinfo=timezone.utc)
+            )
+
+        self.assertEqual(result, 0)
+        get_article.assert_not_called()
+        translate.assert_not_called()
+        deliver.assert_not_called()
+        deliver_article.assert_not_called()
+        self.assertIn(
+            "overnight-news",
+            app.load_state(self.state_path)["news_ids"],
+        )
+
+    def test_quiet_hour_boundaries_use_beijing_time(self):
+        self.assertFalse(
+            app._is_quiet_hours(
+                datetime(2026, 9, 10, 16, 59, tzinfo=timezone.utc)
+            )
+        )
+        self.assertTrue(
+            app._is_quiet_hours(
+                datetime(2026, 9, 10, 17, 0, tzinfo=timezone.utc)
+            )
+        )
+        self.assertTrue(
+            app._is_quiet_hours(
+                datetime(2026, 9, 10, 22, 59, tzinfo=timezone.utc)
+            )
+        )
+        self.assertFalse(
+            app._is_quiet_hours(
+                datetime(2026, 9, 10, 23, 0, tzinfo=timezone.utc)
+            )
+        )
+
 if __name__ == "__main__":
     unittest.main()

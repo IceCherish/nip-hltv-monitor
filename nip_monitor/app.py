@@ -20,6 +20,8 @@ SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 7
 NEWS_MAX_AGE = timedelta(hours=1)
 TRANSFER_MAX_AGE_DAYS = 1
+QUIET_START_HOUR = 1
+QUIET_END_HOUR = 7
 MONTH_NUMBERS = {
     "Jan": 1,
     "Feb": 2,
@@ -86,6 +88,12 @@ def _news_is_expired(item: NewsItem, now: datetime) -> bool:
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     return now.astimezone(timezone.utc) - published_at.astimezone(timezone.utc) > NEWS_MAX_AGE
+
+
+def _is_quiet_hours(now: datetime) -> bool:
+    """Return whether *now* falls in the Beijing-time no-message window."""
+    local_hour = now.astimezone(SHANGHAI).hour
+    return QUIET_START_HOUR <= local_hour < QUIET_END_HOUR
 
 
 def _transfer_is_expired(item: Transfer, now: datetime) -> bool:
@@ -207,6 +215,13 @@ def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
 def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) -> int:
     fixed_now = now is not None
     now = now or datetime.now(timezone.utc)
+    if _is_quiet_hours(now):
+        print(
+            "当前为北京时间 01:00-07:00 静默时段，本轮不抓取、不发送，"
+            "也不更新去重或提醒记录。"
+        )
+        return 0
+
     reminder_minutes = int(os.getenv("REMINDER_MINUTES", "30"))
     schedule_lookahead_days = int(
         os.getenv("SCHEDULE_LOOKAHEAD_DAYS", str(DEFAULT_SCHEDULE_LOOKAHEAD_DAYS))
