@@ -49,6 +49,14 @@
       "signature": "Luminosity|Logitech G Play Connect 2026|2026-09-17T15:00:00Z",
       "start_at": "2026-09-17T15:00:00Z",
       "url": "https://www.hltv.org/matches/2397898/luminosity-vs-ninjas-in-pyjamas-logitech-g-play-connect-2026"
+    },
+    "2398094": {
+      "event": "1win Private Club Season 1",
+      "match_id": "2398094",
+      "opponent": "3DMAX",
+      "signature": "3DMAX|1win Private Club Season 1|2026-09-25T12:00:00Z",
+      "start_at": "2026-09-25T12:00:00Z",
+      "url": "https://www.hltv.org/matches/2398094/ninjas-in-pyjamas-vs-3dmax-1win-private-club-season-1"
     }
   },
   "news_ids": [
@@ -76,6 +84,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-11T12:15:21.785958Z",
+  "updated_at": "2026-09-11T16:00:39.676955Z",
   "version": 1
 }
