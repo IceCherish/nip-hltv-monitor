@@ -1,6 +1,6 @@
 {
   "initialized": true,
-  "last_daily_schedule_date": "2026-09-12",
+  "last_daily_schedule_date": "2026-09-13",
   "matches": {
     "2397886": {
       "event": "Logitech G Play Connect 2026",
@@ -78,6 +78,6 @@
   "transfer_ids": [
     "15f35b43601664a9"
   ],
-  "updated_at": "2026-09-12T23:00:37.353193Z",
+  "updated_at": "2026-09-13T02:00:36.676364Z",
   "version": 1
 }
