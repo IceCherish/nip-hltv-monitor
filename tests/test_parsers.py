@@ -3,6 +3,7 @@ import json
 import os
 import unittest
 from unittest.mock import MagicMock, patch
+from urllib.error import HTTPError
 
 from nip_monitor import translator
 from nip_monitor.app import _schedule_overview_message
@@ -101,6 +102,30 @@ class ParserTests(unittest.TestCase):
         tencent.assert_called_once()
         google.assert_not_called()
 
+    def test_auto_translation_uses_small_groq_chunks_and_skips_after_429(self):
+        environment = {
+            "TRANSLATE_ENABLED": "true",
+            "TRANSLATE_PROVIDER": "auto",
+            "GROQ_API_KEY": "test-groq-key",
+            "TENCENT_SECRET_ID": "test-id",
+            "TENCENT_SECRET_KEY": "test-key",
+        }
+        text = "a" * 1500
+        with patch.dict(os.environ, environment, clear=False), patch.object(
+            translator,
+            "_translate_groq",
+            side_effect=HTTPError("https://api.groq.com", 429, "rate limited", None, None),
+        ) as groq, patch.object(
+            translator, "_translate_tencent", side_effect=lambda chunk, timeout: chunk
+        ) as tencent:
+            self.assertEqual(translator.translate_text(text, attempts=3), text)
+
+        groq.assert_called_once()
+        self.assertEqual(tencent.call_count, 3)
+        self.assertTrue(
+            all(len(call.args[0]) <= translator.GROQ_CHUNK_LIMIT for call in tencent.call_args_list)
+        )
+
     def test_groq_translation_sends_configured_model_and_prompt(self):
         environment = {
             "GROQ_API_KEY": "test-groq-key",
@@ -119,7 +144,19 @@ class ParserTests(unittest.TestCase):
         payload = json.loads(request.data.decode("utf-8"))
         self.assertEqual(payload["model"], "qwen/test-model")
         self.assertEqual(payload["messages"][1]["content"], "hello")
+        self.assertEqual(payload["max_completion_tokens"], 900)
         self.assertIn("Bearer test-groq-key", request.headers.values())
+
+    def test_groq_rejects_truncated_translation(self):
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'{"choices":[{"finish_reason":"length","message":{"content":"partial"}}]}'
+        )
+        with patch.dict(os.environ, {"GROQ_API_KEY": "test-groq-key"}), patch.object(
+            translator, "urlopen", return_value=response
+        ):
+            with self.assertRaisesRegex(translator.TranslationError, "输出上限"):
+                translator._translate_groq("hello", timeout=30)
 
     def test_auto_translation_uses_tencent_before_google(self):
         environment = {

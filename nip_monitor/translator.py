@@ -23,6 +23,8 @@ GOOGLE_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
 TENCENT_TRANSLATE_URL = "https://tmt.tencentcloudapi.com"
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_DEFAULT_MODEL = "qwen/qwen3.8-27b"
+GROQ_MAX_COMPLETION_TOKENS = 900
+GROQ_CHUNK_LIMIT = 700
 GROQ_SYSTEM_PROMPT = (
     "你是专业的 CS2 电竞新闻翻译引擎。请把用户提供的英文完整翻译成自然、通顺、准确的简体中文。"
     "不得总结、删减、解释或添加原文不存在的信息。选手 ID、战队名、比分、地图名、日期和时间必须保持准确。"
@@ -51,12 +53,17 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
     else:
         providers = [provider]
     chunk_limit = 1800 if "tencent" in providers else 3500
+    if "groq" in providers:
+        chunk_limit = min(chunk_limit, GROQ_CHUNK_LIMIT)
     translated: list[str] = []
     used_providers: list[str] = []
+    rate_limited_providers: set[str] = set()
     for chunk in _chunks(text, limit=chunk_limit):
         errors: list[str] = []
         translated_chunk: str | None = None
         for current_provider in providers:
+            if current_provider in rate_limited_providers:
+                continue
             last_error: Exception | None = None
             for attempt in range(1, attempts + 1):
                 try:
@@ -77,6 +84,8 @@ def translate_text(text: str, attempts: int = 3, timeout: int = 30) -> str:
                     TranslationError,
                 ) as exc:
                     last_error = exc
+                    if isinstance(exc, HTTPError) and exc.code == 429:
+                        rate_limited_providers.add(current_provider)
                     if isinstance(exc, TranslationError) or (
                         isinstance(exc, HTTPError) and exc.code == 429
                     ):
@@ -124,7 +133,7 @@ def _translate_groq(text: str, timeout: int) -> str:
                 {"role": "user", "content": text},
             ],
             "temperature": 0.1,
-            "max_completion_tokens": 4096,
+            "max_completion_tokens": GROQ_MAX_COMPLETION_TOKENS,
             "stream": False,
         },
         ensure_ascii=False,
@@ -142,7 +151,10 @@ def _translate_groq(text: str, timeout: int) -> str:
     )
     with urlopen(request, timeout=timeout) as response:
         data = json.loads(response.read().decode("utf-8"))
-    result = data["choices"][0]["message"]["content"].strip()
+    choice = data["choices"][0]
+    if choice.get("finish_reason") == "length":
+        raise TranslationError("Groq Qwen 翻译达到输出上限，改用备用翻译以免正文被截断")
+    result = choice["message"]["content"].strip()
     if not result:
         raise TranslationError("Groq Qwen 返回了空翻译")
     return result
