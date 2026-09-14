@@ -20,6 +20,12 @@ STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 7
 NEWS_MAX_AGE = timedelta(hours=1)
+NIP_NEWS_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9])NIP(?![A-Za-z0-9])"
+    r"|\bNinjas\s+in\s+P[ya]jamas\b"
+    r"|\bthe\s+Ninjas\b",
+    re.IGNORECASE,
+)
 X_POST_MAX_AGE = timedelta(hours=1)
 X_INITIAL_LIMIT = 2
 TRANSFER_MAX_AGE_DAYS = 1
@@ -70,6 +76,22 @@ def _format_time(match: Match) -> str:
 
 def _news_label(item: NewsItem) -> str:
     return "📰【HLTV 新闻】"
+
+
+def _article_mentions_nip(article: Article) -> bool:
+    if NIP_NEWS_PATTERN.search(article.title):
+        return True
+    for block in article.blocks:
+        if block.kind == "text" and NIP_NEWS_PATTERN.search(block.text):
+            return True
+        if block.kind == "schedule":
+            for match in block.matches:
+                if any(
+                    NIP_NEWS_PATTERN.search(value)
+                    for value in (match.team1, match.team2, match.event)
+                ):
+                    return True
+    return False
 
 
 def _latest_event_results(results: list[Result]) -> list[Result]:
@@ -273,7 +295,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     if not notifiers:
         print("提示：尚未配置通知渠道，本次消息只会显示在运行记录中。")
 
-    news = [] if news_mode == "off" else get_news()
+    news = [] if news_mode == "off" else get_news()[:2]
     matches, results, transfers = get_nip_data()
     x_posts: list[XPost] | None = None
     if x_enabled:
@@ -392,7 +414,11 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     sent_article_count = 0
     for item in news_to_send:
         try:
-            article = translate_article(get_article(item))
+            article = get_article(item)
+            if not _article_mentions_nip(article):
+                print(f"新闻 {item.news_id} 未提及 NIP，已跳过并记入去重记录。")
+                continue
+            article = translate_article(article)
         except (SourceError, TranslationError) as exc:
             failed_news_ids.add(item.news_id)
             print(f"新闻 {item.news_id} 本轮暂缓，下次检查重试：{exc}")
@@ -409,10 +435,10 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         last_daily_schedule_date = today
     next_values = {
         "initialized": True,
-        "news_ids": [
-            item.news_id for item in news[:100]
-            if item.news_id not in failed_news_ids
-        ],
+        "news_ids": list(dict.fromkeys(
+            [item.news_id for item in news if item.news_id not in failed_news_ids]
+            + state["news_ids"]
+        ))[:100],
         "matches": {
             item.match_id: {**item.to_dict(), "signature": item.signature()} for item in matches
         },
@@ -449,7 +475,7 @@ def reset_news_state() -> None:
     state["last_daily_schedule_date"] = ""
     state["updated_at"] = ""
     save_state(STATE_PATH, state)
-    print("已清除首次运行和新闻去重记录；下次 monitor 会重新发送赛程和最新 2 条新闻。")
+    print("已清除首次运行和新闻去重记录；下次 monitor 会重新检查最新 2 篇，仅发送其中提及 NIP 的新闻。")
 
 
 def main(argv: list[str] | None = None) -> int:

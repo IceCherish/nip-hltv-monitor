@@ -2,10 +2,12 @@ import tempfile
 import unittest
 import os
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from pathlib import Path
 from unittest.mock import patch
 
 from nip_monitor import app
+from nip_monitor.articles import Article, ArticleBlock, ArticleMatch
 from nip_monitor.models import Match, NewsItem, Result, Transfer
 
 
@@ -81,11 +83,97 @@ class MonitorFlowTests(unittest.TestCase):
                 "get_nip_data",
                 return_value=(self.matches, self.results, []),
             ),
-            patch.object(app, "get_article", side_effect=lambda item: item),
+            patch.object(
+                app,
+                "get_article",
+                side_effect=lambda item: SimpleNamespace(
+                    news_id=item.news_id,
+                    title=item.title,
+                    blocks=(ArticleBlock(kind="text", text="NIP"),),
+                ),
+            ),
             patch.object(app, "translate_article", side_effect=lambda item: item),
             patch.object(app, "deliver"),
             patch.object(app, "deliver_article"),
         )
+
+    def test_article_filter_accepts_any_explicit_nip_mention(self):
+        def article(title="", blocks=(), url="https://example.test/news"):
+            return Article(title, url, "", blocks)
+
+        self.assertTrue(app._article_mentions_nip(article(title="NIP announce roster")))
+        self.assertTrue(app._article_mentions_nip(article(
+            blocks=(ArticleBlock(kind="text", text="The Ninjas play tomorrow"),)
+        )))
+        self.assertTrue(app._article_mentions_nip(article(
+            blocks=(ArticleBlock(kind="text", text="Ninjas in Pyjamas were mentioned"),)
+        )))
+        self.assertTrue(app._article_mentions_nip(article(
+            blocks=(ArticleBlock(kind="text", text="Ninjas in Pajamas were mentioned"),)
+        )))
+        self.assertTrue(app._article_mentions_nip(article(
+            blocks=(ArticleBlock(
+                kind="schedule",
+                matches=(ArticleMatch("NIP", "G2"),),
+            ),)
+        )))
+        self.assertTrue(app._article_mentions_nip(article(
+            blocks=tuple(
+                [ArticleBlock(kind="text", text="Other team") for _ in range(10)]
+                + [ArticleBlock(kind="text", text="NIP also played")]
+            )
+        )))
+        self.assertFalse(app._article_mentions_nip(article(
+            title="G2 win",
+            blocks=(ArticleBlock(kind="text", text="A snip of the match"),),
+            url="https://example.test/news/nip",
+        )))
+
+    def test_first_run_filters_only_latest_two_before_translation(self):
+        self.news = [
+            NewsItem("3", "G2 win", "", "https://example.test/3"),
+            NewsItem("2", "Spirit advances", "", "https://example.test/2"),
+            NewsItem("1", "NIP roster news", "", "https://example.test/1"),
+        ]
+        body = {
+            "3": "G2 beat Spirit.",
+            "2": "Spirit advances; NIP are also mentioned.",
+            "1": "NIP changed players.",
+        }
+        patches = self._patch_monitor()
+        with (
+            patches[0], patches[1], patches[2], patches[3],
+            patches[4] as get_article, patches[5] as translate,
+            patches[6], patches[7] as deliver_article,
+        ):
+            get_article.side_effect = lambda item: SimpleNamespace(
+                news_id=item.news_id,
+                title=item.title,
+                blocks=(ArticleBlock(kind="text", text=body[item.news_id]),),
+            )
+            app.run_monitor(datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc))
+
+            self.assertEqual(
+                [call.args[0].news_id for call in get_article.call_args_list],
+                ["2", "3"],
+            )
+            self.assertEqual(
+                [call.args[0].news_id for call in translate.call_args_list],
+                ["2"],
+            )
+            self.assertEqual(
+                [call.args[1].news_id for call in deliver_article.call_args_list],
+                ["2"],
+            )
+            self.assertEqual(app.load_state(self.state_path)["news_ids"], ["3", "2"])
+
+            get_article.reset_mock()
+            translate.reset_mock()
+            deliver_article.reset_mock()
+            app.run_monitor(datetime(2026, 9, 8, 1, 15, tzinfo=timezone.utc))
+            get_article.assert_not_called()
+            translate.assert_not_called()
+            deliver_article.assert_not_called()
 
     def test_first_run_sends_latest_two_then_deduplicates(self):
         patches = self._patch_monitor()
