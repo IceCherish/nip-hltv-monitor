@@ -7,18 +7,21 @@ from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 
-from .articles import get_article
+from .articles import Article, ArticleBlock, get_article
 from .models import Match, NewsItem, Result, Transfer
 from .notifiers import NotificationError, configured_notifiers, deliver, deliver_article
 from .sources import NIP_TEAM_URL, SourceError, get_news, get_nip_data
 from .state import load_state, save_state
 from .translator import TranslationError, translate_article
+from .x_posts import NIP_X_PROFILE_URL, XPost, get_nip_x_posts
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 7
 NEWS_MAX_AGE = timedelta(hours=1)
+X_POST_MAX_AGE = timedelta(hours=1)
+X_INITIAL_LIMIT = 2
 TRANSFER_MAX_AGE_DAYS = 1
 QUIET_START_HOUR = 1
 QUIET_END_HOUR = 7
@@ -88,6 +91,39 @@ def _news_is_expired(item: NewsItem, now: datetime) -> bool:
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     return now.astimezone(timezone.utc) - published_at.astimezone(timezone.utc) > NEWS_MAX_AGE
+
+
+def _x_post_is_expired(item: XPost, now: datetime) -> bool:
+    try:
+        published_at = datetime.fromisoformat(
+            item.published_at.replace("Z", "+00:00")
+        )
+    except (TypeError, ValueError):
+        return False
+    if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return (
+        now.astimezone(timezone.utc) - published_at.astimezone(timezone.utc)
+    ) > X_POST_MAX_AGE
+
+
+def _x_post_article(item: XPost) -> Article:
+    blocks = [ArticleBlock(kind="text", text=item.text)]
+    blocks.extend(ArticleBlock(kind="image", url=url) for url in item.images)
+    if item.video_url:
+        blocks.append(ArticleBlock(kind="text", text=f"🎬 视频：{item.video_url}"))
+    account = item.handle.removeprefix("@").strip()
+    original_url = NIP_X_PROFILE_URL
+    if account and item.post_id.isdigit():
+        original_url = f"https://x.com/{account}/status/{item.post_id}"
+    return Article(
+        title=f"{item.display_name} {item.handle}".strip(),
+        original_url=original_url,
+        published_at=item.published_at,
+        blocks=tuple(blocks),
+    )
 
 
 def _is_quiet_hours(now: datetime) -> bool:
@@ -229,6 +265,9 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     news_mode = os.getenv("NEWS_MODE", "all").strip().lower()
     if news_mode not in {"all", "off"}:
         raise ValueError("NEWS_MODE 只能是 all 或 off")
+    x_enabled = os.getenv("NIP_X_ENABLED", "false").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
 
     notifiers = configured_notifiers()
     if not notifiers:
@@ -236,6 +275,13 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
 
     news = [] if news_mode == "off" else get_news()
     matches, results, transfers = get_nip_data()
+    x_posts: list[XPost] | None = None
+    if x_enabled:
+        try:
+            x_posts = get_nip_x_posts()
+        except SourceError as exc:
+            print(f"NIP X 快讯读取失败，本轮只跳过 X 功能：{exc}")
+
     schedule_matches = _upcoming_matches_within(
         matches, now, schedule_lookahead_days
     )
@@ -243,6 +289,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     state = load_state(STATE_PATH)
     notifications: list[tuple[str, str]] = []
     news_to_send: list[NewsItem] = []
+    x_posts_to_send: list[XPost] = []
     eligible_news = [item for item in news if not _news_is_expired(item, now)]
     known_news = set(state["news_ids"])
     newly_expired_news = [
@@ -288,6 +335,30 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             if not _transfer_is_expired(item, now)
         )
 
+    if x_posts is not None:
+        eligible_x_posts = [
+            item for item in x_posts if not _x_post_is_expired(item, now)
+        ]
+        known_x_posts = set(state.get("x_post_ids", []))
+        newly_expired_x_posts = [
+            item
+            for item in x_posts
+            if item.post_id not in known_x_posts and _x_post_is_expired(item, now)
+        ]
+        if newly_expired_x_posts:
+            print(
+                "已跳过超过 1 小时的 NIP X 快讯："
+                + ", ".join(item.post_id for item in newly_expired_x_posts)
+            )
+        if state.get("x_initialized", False):
+            x_posts_to_send = [
+                item
+                for item in reversed(eligible_x_posts)
+                if item.post_id not in known_x_posts
+            ]
+        else:
+            x_posts_to_send = list(reversed(eligible_x_posts[:X_INITIAL_LIMIT]))
+
     schedule_sent = schedule_needed and bool(schedule_matches)
     if schedule_sent:
         notifications.append(
@@ -307,6 +378,16 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     for title, message in notifications:
         deliver(title, message, notifiers)
 
+    failed_x_ids: set[str] = set()
+    sent_x_count = 0
+    for item in x_posts_to_send:
+        try:
+            deliver_article("🐦【NIP 官推】", _x_post_article(item), notifiers)
+        except NotificationError as exc:
+            failed_x_ids.add(item.post_id)
+            print(f"NIP X 快讯 {item.post_id} 发送失败，下次检查重试：{exc}")
+            continue
+        sent_x_count += 1
     failed_news_ids: set[str] = set()
     sent_article_count = 0
     for item in news_to_send:
@@ -340,11 +421,18 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         "recent_result_ids": [result.result_id for result in recent_results],
         "last_daily_schedule_date": last_daily_schedule_date,
     }
+    if x_posts is not None:
+        next_values["x_initialized"] = True
+        next_values["x_post_ids"] = [
+            item.post_id
+            for item in x_posts[:100]
+            if item.post_id not in failed_x_ids
+        ]
     if any(state.get(key) != value for key, value in next_values.items()):
         next_values["updated_at"] = now.isoformat().replace("+00:00", "Z")
     state.update(next_values)
     save_state(STATE_PATH, state)
-    message_count = len(notifications) + sent_article_count
+    message_count = len(notifications) + sent_article_count + sent_x_count
     print(
         f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，"
         f"{schedule_lookahead_days} 天内比赛 {len(schedule_matches)} 场，"

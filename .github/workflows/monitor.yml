@@ -38,6 +38,7 @@ jobs:
       - name: 检查更新
         env:
           NEWS_MODE: ${{ vars.NEWS_MODE || 'all' }}
+          NIP_X_ENABLED: ${{ vars.NIP_X_ENABLED || 'false' }}
           REMINDER_MINUTES: ${{ vars.REMINDER_MINUTES || '30' }}
           SCHEDULE_LOOKAHEAD_DAYS: ${{ vars.SCHEDULE_LOOKAHEAD_DAYS || '7' }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

@@ -28,6 +28,7 @@ jobs:
         env:
           MONITOR_RUN_KIND: scheduled
           NEWS_MODE: ${{ vars.NEWS_MODE || 'all' }}
+          NIP_X_ENABLED: ${{ vars.NIP_X_ENABLED || 'false' }}
           REMINDER_MINUTES: ${{ vars.REMINDER_MINUTES || '30' }}
           SCHEDULE_LOOKAHEAD_DAYS: ${{ vars.SCHEDULE_LOOKAHEAD_DAYS || '7' }}
           TRANSLATE_PROVIDER: ${{ vars.TRANSLATE_PROVIDER || 'auto' }}
