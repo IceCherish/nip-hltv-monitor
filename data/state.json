@@ -6,8 +6,8 @@
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397891",
       "opponent": "B8",
-      "signature": "B8|Logitech G Play Connect 2026|2026-09-17T11:40:00Z",
-      "start_at": "2026-09-17T11:40:00Z",
+      "signature": "B8|Logitech G Play Connect 2026|2026-09-17T11:50:00Z",
+      "start_at": "2026-09-17T11:50:00Z",
       "url": "https://www.hltv.org/matches/2397891/ninjas-in-pyjamas-vs-b8-logitech-g-play-connect-2026"
     },
     "2397893": {
@@ -84,6 +84,6 @@
     "12e27d81d761f870",
     "226593b8107a20ad"
   ],
-  "updated_at": "2026-09-17T11:15:21.894951Z",
+  "updated_at": "2026-09-17T11:30:30.765133Z",
   "version": 1
 }
