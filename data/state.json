@@ -6,32 +6,32 @@
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397891",
       "opponent": "B8",
-      "signature": "B8|Logitech G Play Connect 2026|2026-09-17T11:50:00Z",
-      "start_at": "2026-09-17T11:50:00Z",
+      "signature": "B8|Logitech G Play Connect 2026|2026-09-17T12:15:00Z",
+      "start_at": "2026-09-17T12:15:00Z",
       "url": "https://www.hltv.org/matches/2397891/ninjas-in-pyjamas-vs-b8-logitech-g-play-connect-2026"
     },
     "2397893": {
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397893",
       "opponent": "Metizport",
-      "signature": "Metizport|Logitech G Play Connect 2026|2026-09-17T12:30:00Z",
-      "start_at": "2026-09-17T12:30:00Z",
+      "signature": "Metizport|Logitech G Play Connect 2026|2026-09-17T13:00:00Z",
+      "start_at": "2026-09-17T13:00:00Z",
       "url": "https://www.hltv.org/matches/2397893/metizport-vs-ninjas-in-pyjamas-logitech-g-play-connect-2026"
     },
     "2397894": {
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397894",
       "opponent": "GamerLegion",
-      "signature": "GamerLegion|Logitech G Play Connect 2026|2026-09-17T13:00:00Z",
-      "start_at": "2026-09-17T13:00:00Z",
+      "signature": "GamerLegion|Logitech G Play Connect 2026|2026-09-17T14:00:00Z",
+      "start_at": "2026-09-17T14:00:00Z",
       "url": "https://www.hltv.org/matches/2397894/gamerlegion-vs-ninjas-in-pyjamas-logitech-g-play-connect-2026"
     },
     "2397898": {
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397898",
       "opponent": "Luminosity",
-      "signature": "Luminosity|Logitech G Play Connect 2026|2026-09-17T15:00:00Z",
-      "start_at": "2026-09-17T15:00:00Z",
+      "signature": "Luminosity|Logitech G Play Connect 2026|2026-09-17T16:00:00Z",
+      "start_at": "2026-09-17T16:00:00Z",
       "url": "https://www.hltv.org/matches/2397898/luminosity-vs-ninjas-in-pyjamas-logitech-g-play-connect-2026"
     },
     "2398094": {
@@ -84,6 +84,6 @@
     "12e27d81d761f870",
     "226593b8107a20ad"
   ],
-  "updated_at": "2026-09-17T11:30:30.765133Z",
+  "updated_at": "2026-09-17T12:00:37.315528Z",
   "version": 1
 }
