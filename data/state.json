@@ -2,14 +2,6 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-09-17",
   "matches": {
-    "2397886": {
-      "event": "Logitech G Play Connect 2026",
-      "match_id": "2397886",
-      "opponent": "M80",
-      "signature": "M80|Logitech G Play Connect 2026|2026-09-17T09:00:00Z",
-      "start_at": "2026-09-17T09:00:00Z",
-      "url": "https://www.hltv.org/matches/2397886/ninjas-in-pyjamas-vs-m80-logitech-g-play-connect-2026"
-    },
     "2397891": {
       "event": "Logitech G Play Connect 2026",
       "match_id": "2397891",
@@ -52,6 +44,7 @@
     }
   },
   "news_ids": [
+    "45533",
     "45532",
     "45529",
     "45531",
@@ -92,6 +85,6 @@
     "12e27d81d761f870",
     "226593b8107a20ad"
   ],
-  "updated_at": "2026-09-17T08:30:27.982211Z",
+  "updated_at": "2026-09-17T09:00:35.056227Z",
   "version": 1
 }
