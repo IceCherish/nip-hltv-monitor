@@ -501,7 +501,7 @@ def get_news() -> list[NewsItem]:
 def get_nip_data() -> tuple[list[Match] | None, list[Result] | None, list[Transfer] | None]:
     from .team_page import fetch_team_page, parse_team_page
 
-    matches = results = transfers = None
+    matches = results = None
     try:
         matches, results = parse_team_page(fetch_team_page())
         if matches is not None:
@@ -523,16 +523,8 @@ def get_nip_data() -> tuple[list[Match] | None, list[Result] | None, list[Transf
             print("赛果读取来源：赛果页阅读服务")
         except SourceError as exc:
             _nip_read_warning("赛果", exc)
-    try:
-        page = fetch_via_reader(HLTV_TRANSFERS_URL)
-        if any(marker in page.lower() for marker in ("just a moment", "performing security verification", "cf-chl-")):
-            raise SourceError("转会页返回了安全验证页面")
-        if "Ninjas in Pyjamas" not in page or "transfers" not in page.lower():
-            raise SourceError("转会页缺少可识别的 NIP 转会区域")
-        transfers = parse_transfers(page)
-    except SourceError as exc:
-        _nip_read_warning("阵容动态", exc)
-    return matches, results, transfers
+    # Keep the old tuple shape for compatibility; transfer monitoring is removed.
+    return matches, results, None
 
 
 def _nip_read_warning(name: str, error: Exception) -> None:

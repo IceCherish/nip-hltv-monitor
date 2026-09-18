@@ -74,13 +74,13 @@ class TeamPageTests(TestCase):
             matches, results, transfers = sources.get_nip_data()
         self.assertEqual(len(matches), 1)
         self.assertEqual(len(results), 1)
-        self.assertEqual(transfers, [])
-        self.assertEqual([call.args[0] for call in reader.call_args_list], [sources.HLTV_TRANSFERS_URL])
+        self.assertIsNone(transfers)
+        reader.assert_not_called()
 
     def test_team_failure_uses_original_paths_independently(self):
         expected_matches = [Match("1", "3DMAX", "url", "Event", "2026-09-25T12:00:00Z")]
         with patch.object(team_page, "fetch_team_page", side_effect=sources.SourceError("403")), patch.object(
-            sources, "fetch_via_reader", side_effect=["matches", sources.SourceError("results blocked"), sources.SourceError("transfers blocked")]
+            sources, "fetch_via_reader", side_effect=["matches", sources.SourceError("results blocked")]
         ), patch.object(sources, "parse_matches_html", return_value=expected_matches):
             matches, results, transfers = sources.get_nip_data()
         self.assertEqual(matches, expected_matches)
@@ -90,9 +90,10 @@ class TeamPageTests(TestCase):
     def test_only_invalid_homepage_section_uses_fallback(self):
         expected = [Result("2", "3DMAX", 2, 0, "Recent Event")]
         with patch.object(team_page, "fetch_team_page", return_value=page(row(), row("2", scores=("-", "0")))), patch.object(
-            sources, "fetch_via_reader", side_effect=["results", "Transfers for Ninjas in Pyjamas"]
+            sources, "fetch_via_reader", side_effect=["results"]
         ) as reader, patch.object(sources, "parse_results", return_value=expected):
             matches, results, _ = sources.get_nip_data()
         self.assertEqual(len(matches), 1)
         self.assertEqual(results, expected)
         self.assertNotIn(sources.HLTV_MATCHES_URL, [call.args[0] for call in reader.call_args_list])
+        self.assertNotIn(sources.HLTV_TRANSFERS_URL, [call.args[0] for call in reader.call_args_list])

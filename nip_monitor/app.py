@@ -8,9 +8,9 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 from .articles import Article, ArticleBlock, get_article
-from .models import Match, NewsItem, Result, Transfer
+from .models import Match, NewsItem, Result
 from .notifiers import NotificationError, configured_notifiers, deliver, deliver_article
-from .sources import NIP_TEAM_URL, SourceError, get_news, get_nip_data
+from .sources import SourceError, get_news, get_nip_data
 from .state import load_state, save_state
 from .translator import TranslationError, translate_article
 from .x_posts import NIP_X_PROFILE_URL, XPost, get_nip_x_posts
@@ -28,23 +28,8 @@ NIP_NEWS_PATTERN = re.compile(
 )
 X_POST_MAX_AGE = timedelta(hours=1)
 X_INITIAL_LIMIT = 2
-TRANSFER_MAX_AGE_DAYS = 1
 QUIET_START_HOUR = 1
 QUIET_END_HOUR = 7
-MONTH_NUMBERS = {
-    "Jan": 1,
-    "Feb": 2,
-    "Mar": 3,
-    "Apr": 4,
-    "May": 5,
-    "Jun": 6,
-    "Jul": 7,
-    "Aug": 8,
-    "Sep": 9,
-    "Oct": 10,
-    "Nov": 11,
-    "Dec": 12,
-}
 
 
 def _load_local_env(path: Path) -> None:
@@ -154,23 +139,6 @@ def _is_quiet_hours(now: datetime) -> bool:
     return QUIET_START_HOUR <= local_hour < QUIET_END_HOUR
 
 
-def _transfer_is_expired(item: Transfer, now: datetime) -> bool:
-    match = re.fullmatch(
-        r"([A-Z][a-z]{2}) (\d{1,2})(?:st|nd|rd|th) (\d{4})",
-        item.date.strip(),
-    )
-    if not match or match.group(1) not in MONTH_NUMBERS:
-        return False
-    transfer_date = datetime(
-        int(match.group(3)),
-        MONTH_NUMBERS[match.group(1)],
-        int(match.group(2)),
-        tzinfo=SHANGHAI,
-    ).date()
-    current_date = now.astimezone(SHANGHAI).date()
-    return (current_date - transfer_date).days > TRANSFER_MAX_AGE_DAYS
-
-
 def _upcoming_matches_within(
     matches: list[Match], now: datetime, days: int
 ) -> list[Match]:
@@ -256,10 +224,6 @@ def _schedule_overview_message(
     return title, "\n\n".join(sections)
 
 
-def _transfer_message(item: Transfer) -> tuple[str, str]:
-    return "🔁 NIP 阵容动态", f"{item.text}\n日期：{item.date}\n{NIP_TEAM_URL}"
-
-
 def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
     if minutes <= 1:
         countdown = "🚨 比赛即将开始！"
@@ -313,13 +277,12 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
                 print("::warning::新闻列表读取失败；本轮跳过新闻，其他功能继续，下次定时检查重试。")
     try:
-        matches_data, results_data, transfers_data = get_nip_data()
+        matches_data, results_data, _legacy_transfers = get_nip_data()
     except SourceError as exc:
         print(f"NIP 数据读取失败，本轮跳过相关功能，新闻继续：{exc}")
-        matches_data = results_data = transfers_data = None
+        matches_data = results_data = None
     matches = matches_data or []
     results = results_data or []
-    transfers = transfers_data or []
     x_posts: list[XPost] | None = None
     if x_enabled:
         try:
@@ -360,25 +323,6 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         news_to_send = [
             item for item in reversed(eligible_news) if item.news_id not in known_news
         ]
-
-        known_transfers = set(state["transfer_ids"])
-        unseen_transfers = [
-            item for item in reversed(transfers)
-            if item.transfer_id not in known_transfers
-        ]
-        expired_transfers = [
-            item for item in unseen_transfers if _transfer_is_expired(item, now)
-        ]
-        if expired_transfers:
-            print(
-                "已跳过超过 1 天的阵容动态："
-                + ", ".join(item.transfer_id for item in expired_transfers)
-            )
-        notifications.extend(
-            _transfer_message(item)
-            for item in unseen_transfers
-            if not _transfer_is_expired(item, now)
-        )
 
     if x_posts is not None:
         eligible_x_posts = [
@@ -469,8 +413,6 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         next_values["matches"] = {
             item.match_id: {**item.to_dict(), "signature": item.signature()} for item in matches
         }
-    if transfers_data is not None:
-        next_values["transfer_ids"] = [item.transfer_id for item in transfers[:100]]
     if results_data is not None:
         next_values["recent_result_ids"] = [result.result_id for result in recent_results]
     if x_posts is not None:
@@ -489,12 +431,12 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         f"完成：新闻 {len(news)} 条，未来比赛 {len(matches)} 场，"
         f"{schedule_lookahead_days} 天内比赛 {len(schedule_matches)} 场，"
         f"最近赛事赛果 {len(recent_results)} 场，"
-        f"阵容动态 {len(transfers)} 条，新消息 {message_count} 条。"
+        f"新消息 {message_count} 条。"
     )
     if news_source_failed:
         print("注意：本轮新闻数据不可用，新闻 0 条不代表 HLTV 没有新新闻。")
-    if matches_data is None or results_data is None or transfers_data is None:
-        print("注意：部分 NIP 数据不可用；上述 0 场或 0 条不代表没有比赛、赛果或阵容动态。")
+    if matches_data is None or results_data is None:
+        print("注意：部分 NIP 数据不可用；上述 0 场不代表没有比赛或赛果。")
     return 0
 
 

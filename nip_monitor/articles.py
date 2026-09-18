@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import html
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.parse import urljoin
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from .models import NewsItem
 from .sources import HLTV_BASE, SourceError, fetch_via_reader
@@ -173,18 +176,104 @@ def _clean_text(value: str) -> str:
     return value.strip()
 
 
-def parse_article_html(raw_html: str, item: NewsItem) -> Article:
+class _ArticleBodyExtractor(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.depth = 0
+        self.found = False
+        self.complete = False
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        classes = set((dict(attrs).get("class") or "").split())
+        if not self.depth:
+            if self.found or tag != "div" or "newstext-con" not in classes:
+                return
+            self.depth = 1
+            self.found = True
+        elif tag == "div":
+            self.depth += 1
+        self.parts.append(self.get_starttag_text())
+
+    def handle_endtag(self, tag: str) -> None:
+        if not self.depth:
+            return
+        self.parts.append(f"</{tag}>")
+        if tag == "div":
+            self.depth -= 1
+            self.complete = self.depth == 0
+
+    def handle_data(self, data: str) -> None:
+        if self.depth:
+            self.parts.append(data)
+
+    def handle_entityref(self, name: str) -> None:
+        if self.depth:
+            self.parts.append(f"&{name};")
+
+    def handle_charref(self, name: str) -> None:
+        if self.depth:
+            self.parts.append(f"&#{name};")
+
+
+def parse_article_html(raw_html: str, item: NewsItem, *, require_body_container: bool = False) -> Article:
+    extractor = _ArticleBodyExtractor()
+    extractor.feed(raw_html)
+    extractor.close()
+    if extractor.found:
+        if not extractor.complete:
+            raise SourceError(f"新闻 {item.news_id} 的正文区域不完整")
+        raw_html = "".join(extractor.parts)
+    else:
+        if any(marker in raw_html.lower() for marker in ("just a moment", "performing security verification", "cf-chl-")):
+            raise SourceError(f"新闻 {item.news_id} 返回了安全验证页面，未获取到正文")
+        if require_body_container:
+            raise SourceError(f"新闻 {item.news_id} 缺少可识别的正文区域，可能被拦截或页面格式变化")
     parser = _ArticleHTMLParser()
     parser.feed(raw_html)
+    parser.close()
     if not any(block.kind == "text" for block in parser.blocks):
         raise SourceError(f"没有从新闻 {item.news_id} 中解析到正文，页面格式可能已变化")
     return Article(item.title, item.url, item.published_at, tuple(parser.blocks))
 
 
+def _get_article_direct(item: NewsItem, attempts: int = 2, timeout: int = 25) -> Article:
+    request = Request(item.url, headers={
+        "User-Agent": "nip-hltv-monitor/1.0 (personal, non-commercial monitor)",
+        "Accept": "text/html",
+    })
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                content = response.read().decode("utf-8", errors="replace")
+            return parse_article_html(content, item, require_body_container=True)
+        except SourceError:
+            raise
+        except HTTPError as exc:
+            last_error = exc
+            if exc.code in {401, 403, 404, 429}:
+                break
+        except (URLError, TimeoutError) as exc:
+            last_error = exc
+        if attempt < attempts:
+            time.sleep(2 ** (attempt - 1))
+    raise SourceError(f"新闻 {item.news_id} 直连读取失败：{last_error}")
+
+
 def get_article(item: NewsItem) -> Article:
-    raw_html = fetch_via_reader(
-        item.url,
-        response_format="html",
-        selector=".newstext-con",
-    )
-    return parse_article_html(raw_html, item)
+    try:
+        article = _get_article_direct(item)
+    except SourceError as direct_error:
+        print(f"新闻 {item.news_id} 正文直连失败，尝试阅读服务备用路径：{direct_error}")
+        try:
+            raw_html = fetch_via_reader(item.url, response_format="html", selector=".newstext-con")
+            article = parse_article_html(raw_html, item, require_body_container=True)
+        except SourceError as reader_error:
+            raise SourceError(
+                f"新闻 {item.news_id} 正文两条读取路径均失败；直连：{direct_error}；阅读服务：{reader_error}"
+            ) from reader_error
+        print(f"新闻 {item.news_id} 正文读取来源：阅读服务备用路径")
+        return article
+    print(f"新闻 {item.news_id} 正文读取来源：HLTV 直连")
+    return article

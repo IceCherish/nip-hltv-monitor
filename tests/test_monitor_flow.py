@@ -247,7 +247,7 @@ class MonitorFlowTests(unittest.TestCase):
                 app.load_state(self.state_path)["news_ids"],
             )
 
-    def test_transfer_older_than_one_day_is_skipped_and_remembered(self):
+    def test_old_transfer_data_is_ignored_after_removal(self):
         app.save_state(
             self.state_path,
             {
@@ -268,12 +268,12 @@ class MonitorFlowTests(unittest.TestCase):
 
         deliver.assert_not_called()
         deliver_article.assert_not_called()
-        self.assertIn(
+        self.assertNotIn(
             "changed-old-transfer",
             app.load_state(self.state_path)["transfer_ids"],
         )
 
-    def test_yesterdays_transfer_can_still_be_sent(self):
+    def test_recent_transfer_data_is_not_sent_after_removal(self):
         app.save_state(
             self.state_path,
             {
@@ -292,8 +292,8 @@ class MonitorFlowTests(unittest.TestCase):
             nip_data.return_value = (self.matches, self.results, [recent_transfer])
             app.run_monitor(datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc))
 
-        self.assertEqual(deliver.call_count, 1)
-        self.assertEqual(deliver.call_args.args[0], "🔁 NIP 阵容动态")
+        deliver.assert_not_called()
+        self.assertNotIn("recent-transfer", app.load_state(self.state_path)["transfer_ids"])
 
     def test_daily_schedule_is_sent_once_after_ten_beijing_time(self):
         patches = self._patch_monitor()
