@@ -381,7 +381,7 @@ class MonitorFlowTests(unittest.TestCase):
                 "2026-09-08",
             )
 
-    def test_schedule_message_excludes_matches_beyond_seven_days(self):
+    def test_schedule_message_excludes_matches_beyond_five_days(self):
         patches = self._patch_monitor()
         with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7]:
             far_match = Match(
@@ -389,7 +389,7 @@ class MonitorFlowTests(unittest.TestCase):
                 "Vitality",
                 "https://example.test/match-far",
                 "Future Event",
-                "2026-09-20T07:00:00Z",
+                "2026-09-14T07:00:00Z",
             )
             nip_data.return_value = (self.matches + [far_match], self.results, [])
             app.run_monitor(datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc))
@@ -398,6 +398,32 @@ class MonitorFlowTests(unittest.TestCase):
             rendered = deliver.call_args.args[1]
             self.assertIn("NIP vs HEROIC", rendered)
             self.assertNotIn("NIP vs Vitality", rendered)
+
+    def test_news_feed_failure_preserves_ids_and_allows_reminder(self):
+        app.save_state(self.state_path, {
+            "initialized": True,
+            "news_ids": ["cached-news"],
+            "last_daily_schedule_date": "2026-09-10",
+            "sent_reminders": [],
+        })
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2] as news, patches[3], patches[4] as article, patches[5], patches[6] as deliver, patches[7] as deliver_article:
+            news.side_effect = app.SourceError("both paths blocked")
+            self.assertEqual(app.run_monitor(datetime(2026, 9, 10, 6, 35, tzinfo=timezone.utc)), 0)
+            article.assert_not_called()
+            deliver_article.assert_not_called()
+            deliver.assert_called_once()
+            self.assertEqual(deliver.call_args.args[0], "🚨 【NIP 吃史警告】")
+            self.assertEqual(app.load_state(self.state_path)["news_ids"], ["cached-news"])
+
+    def test_five_day_filter_includes_boundary_but_excludes_day_six(self):
+        now = datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc)
+        matches = [
+            Match("five", "A", "u", "Event", "2026-09-13T03:00:00Z"),
+            Match("six", "B", "u", "Event", "2026-09-14T03:00:00Z"),
+        ]
+        self.assertEqual(app.DEFAULT_SCHEDULE_LOOKAHEAD_DAYS, 5)
+        self.assertEqual([m.match_id for m in app._upcoming_matches_within(matches, now, 5)], ["five"])
 
     def test_external_dispatch_is_treated_as_scheduled_check(self):
         environment = {

@@ -27,6 +27,8 @@ from nip_monitor.sources import (
     parse_transfers,
     parse_upcoming_match_links,
     get_news,
+    parse_news_rss,
+    SourceError,
 )
 from nip_monitor.translator import translate_article
 
@@ -251,12 +253,70 @@ Description.
 Wed, 9 Sep 2026 12:42:00 GMT
 """
         with patch(
+            "nip_monitor.sources._fetch_news_rss", side_effect=SourceError("direct unavailable")
+        ), patch(
             "nip_monitor.sources.fetch_via_reader", return_value=feed
         ) as fetch:
             self.assertEqual(get_news()[0].news_id, "1")
 
         fetch.assert_called_once()
         self.assertEqual(fetch.call_args.kwargs["cache_tolerance"], 60)
+
+    def test_parse_official_rss_preserves_id_title_and_date(self):
+        xml = '''<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><item>
+<title>NIP: &quot;A &amp; B&quot;</title>
+<description>Lineup news.</description>
+<link>https://www.hltv.org/news/45540/nip-news</link>
+<pubDate>Thu, 17 Sep 2026 20:37:00 GMT</pubDate>
+</item></channel></rss>'''
+        items = parse_news_rss(xml)
+        self.assertEqual(items[0].news_id, "45540")
+        self.assertEqual(items[0].title, 'NIP: "A & B"')
+        self.assertEqual(items[0].published_at, "Thu, 17 Sep 2026 20:37:00 GMT")
+
+    def test_news_direct_rss_success_does_not_call_reader(self):
+        expected = [NewsItem("1", "NIP", "", "https://www.hltv.org/news/1/nip")]
+        with patch("nip_monitor.sources._fetch_news_rss", return_value=expected), patch(
+            "nip_monitor.sources.fetch_via_reader"
+        ) as reader:
+            self.assertEqual(get_news(), expected)
+        reader.assert_not_called()
+
+    def test_direct_rss_request_reads_xml(self):
+        from nip_monitor.sources import _fetch_news_rss
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = (
+            b'<rss><channel><item><title>NIP news</title>'
+            b'<link>https://www.hltv.org/news/1/nip-news</link>'
+            b'<pubDate>Thu, 17 Sep 2026 20:37:00 GMT</pubDate>'
+            b'</item></channel></rss>'
+        )
+        with patch("nip_monitor.sources.urlopen", return_value=response) as fetch:
+            self.assertEqual(_fetch_news_rss()[0].news_id, "1")
+        self.assertEqual(fetch.call_args.args[0].full_url, "https://www.hltv.org/rss/news")
+
+    def test_direct_rss_403_does_not_repeat_same_request(self):
+        from nip_monitor.sources import _fetch_news_rss
+        with patch("nip_monitor.sources.urlopen", side_effect=HTTPError("url", 403, "Forbidden", None, None)) as fetch:
+            with self.assertRaises(SourceError):
+                _fetch_news_rss()
+        fetch.assert_called_once()
+
+    def test_news_both_paths_failed_reports_verification(self):
+        from nip_monitor.sources import SourceError
+        with patch("nip_monitor.sources._fetch_news_rss", side_effect=SourceError("HTTP 403")), patch(
+            "nip_monitor.sources.fetch_via_reader",
+            return_value="Title: Just a moment...\nMarkdown Content:\nPerforming security verification",
+        ):
+            with self.assertRaisesRegex(SourceError, "两条读取路径均失败.*安全验证"):
+                get_news()
+
+    def test_invalid_rss_is_not_treated_as_empty_news(self):
+        from nip_monitor.sources import SourceError
+        for value in ("<html>blocked</html>", "<rss>", "<rss><channel /></rss>"):
+            with self.subTest(value=value), self.assertRaises(SourceError):
+                parse_news_rss(value)
 
 
     def test_article_image_failure_keeps_all_text(self):
@@ -571,6 +631,22 @@ Thursday - 2026-09-10
         self.assertIn("⏳ 距离 3 天 4 小时", rendered)
         self.assertIn("🏆 【往期赛事回顾】", rendered)
         self.assertIn("📊 赛果: NIP 2 : 0 HEROIC", rendered)
+
+    def test_losing_or_even_event_hides_scores(self):
+        now = datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc)
+        for scores in ([(2, 0), (0, 2), (1, 2)], [(2, 0), (0, 2)]):
+            results = [Result(str(i), "Opponent", a, b, "Recent Event") for i, (a, b) in enumerate(scores)]
+            with self.subTest(scores=scores):
+                _, rendered = _schedule_overview_message([], results, now)
+                self.assertIn("🎮 赛事: Recent Event", rendered)
+                self.assertIn("💩 菜得没眼看，具体战绩不提也罢。", rendered)
+                self.assertNotIn("📊 赛果:", rendered)
+
+    def test_tied_score_does_not_count_as_completed_loss(self):
+        now = datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc)
+        _, rendered = _schedule_overview_message([], [Result("1", "Opponent", 0, 0, "Event")], now)
+        self.assertNotIn("菜得没眼看", rendered)
+        self.assertIn("📊 赛果:", rendered)
 
 
 if __name__ == "__main__":

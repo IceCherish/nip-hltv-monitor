@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from xml.etree import ElementTree
 
 from .models import Match, NewsItem, Result, Transfer
 
@@ -63,8 +64,15 @@ def fetch_via_reader(
 
 
 def parse_news(markdown: str) -> list[NewsItem]:
+    if re.search(r"<rss\b", markdown, re.IGNORECASE):
+        return parse_news_rss(markdown[markdown.lower().index("<rss"):])
+    if any(marker in markdown.lower() for marker in (
+        "performing security verification", "verify you are human",
+        "verification successful. waiting", "just a moment...", "cf-chl-",
+    )):
+        raise SourceError("HLTV 返回了安全验证页面，未获取到新闻；程序不能自动通过验证")
     header = re.compile(
-        r"^### \[(?P<title>.+?)\]\((?P<url>https://www\.hltv\.org/news/(?P<id>\d+)/[^)]+)\)\s*$",
+        r"^#{1,6} \[(?P<title>.+?)\]\((?P<url>https://www\.hltv\.org/news/(?P<id>\d+)/[^)]+)\)\s*$",
         re.MULTILINE,
     )
     matches = list(header.finditer(markdown))
@@ -98,6 +106,53 @@ def parse_news(markdown: str) -> list[NewsItem]:
     if not items:
         raise SourceError("没有从 HLTV 官方 RSS 中解析到新闻，页面格式可能已变化")
     return items
+
+
+def parse_news_rss(xml: str) -> list[NewsItem]:
+    try:
+        root = ElementTree.fromstring(xml)
+    except ElementTree.ParseError as exc:
+        raise SourceError(f"官方 RSS 返回的内容不是有效 XML：{exc}") from exc
+    if root.tag != "rss":
+        raise SourceError("官方 RSS 返回的内容不是新闻订阅，可能是安全验证页面")
+    items: list[NewsItem] = []
+    for item in root.findall("./channel/item"):
+        url = (item.findtext("link") or "").strip()
+        match = re.fullmatch(r"https://www\.hltv\.org/news/(\d+)/[^\s]+", url)
+        title = (item.findtext("title") or "").strip()
+        if match and title:
+            items.append(NewsItem(
+                news_id=match.group(1), title=title, url=url,
+                description=(item.findtext("description") or "").strip(),
+                published_at=(item.findtext("pubDate") or "").strip(),
+            ))
+    if not items:
+        raise SourceError("官方 RSS 中没有有效新闻条目")
+    return items
+
+
+def _fetch_news_rss(attempts: int = 2, timeout: int = 25) -> list[NewsItem]:
+    request = Request(HLTV_NEWS_RSS, headers={
+        "User-Agent": "nip-hltv-monitor/1.0 (personal, non-commercial monitor)",
+        "Accept": "application/rss+xml, application/xml, text/xml",
+    })
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                content = response.read().decode("utf-8-sig", errors="replace")
+            return parse_news_rss(content)
+        except SourceError:
+            raise
+        except HTTPError as exc:
+            last_error = exc
+            if exc.code in {401, 403, 429}:
+                break
+        except (URLError, TimeoutError) as exc:
+            last_error = exc
+        if attempt < attempts:
+            time.sleep(2 ** (attempt - 1))
+    raise SourceError(f"直接读取官方 RSS 失败：{last_error}")
 
 
 def parse_upcoming_match_links(markdown: str) -> list[Match]:
@@ -424,7 +479,20 @@ def _strip_markdown_links(text: str) -> str:
 
 
 def get_news() -> list[NewsItem]:
-    return parse_news(fetch_via_reader(HLTV_NEWS_RSS, cache_tolerance=60))
+    try:
+        items = _fetch_news_rss()
+    except SourceError as direct_error:
+        print(f"直接读取官方 RSS 失败，尝试阅读服务备用路径：{direct_error}")
+        try:
+            items = parse_news(fetch_via_reader(HLTV_NEWS_RSS, cache_tolerance=60))
+        except SourceError as reader_error:
+            raise SourceError(
+                f"新闻两条读取路径均失败；官方 RSS：{direct_error}；阅读服务：{reader_error}"
+            ) from reader_error
+        print("新闻读取来源：阅读服务备用路径")
+        return items
+    print("新闻读取来源：HLTV 官方 RSS 直连")
+    return items
 
 
 def get_nip_data() -> tuple[list[Match], list[Result], list[Transfer]]:

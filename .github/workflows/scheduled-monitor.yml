@@ -30,7 +30,7 @@ jobs:
           NEWS_MODE: ${{ vars.NEWS_MODE || 'all' }}
           NIP_X_ENABLED: ${{ vars.NIP_X_ENABLED || 'false' }}
           REMINDER_MINUTES: ${{ vars.REMINDER_MINUTES || '30' }}
-          SCHEDULE_LOOKAHEAD_DAYS: ${{ vars.SCHEDULE_LOOKAHEAD_DAYS || '7' }}
+          SCHEDULE_LOOKAHEAD_DAYS: ${{ vars.SCHEDULE_LOOKAHEAD_DAYS || '5' }}
           TRANSLATE_PROVIDER: ${{ vars.TRANSLATE_PROVIDER || 'auto' }}
           TENCENT_SECRET_ID: ${{ secrets.TENCENT_SECRET_ID }}
           TENCENT_SECRET_KEY: ${{ secrets.TENCENT_SECRET_KEY }}

@@ -18,7 +18,7 @@ from .x_posts import NIP_X_PROFILE_URL, XPost, get_nip_x_posts
 ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
-DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 7
+DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 5
 NEWS_MAX_AGE = timedelta(hours=1)
 NIP_NEWS_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])NIP(?![A-Za-z0-9])"
@@ -239,10 +239,15 @@ def _schedule_overview_message(
     if recent_results:
         review.append("")
         review.append(f"🎮 赛事: {recent_results[0].event}")
-        review.extend(
-            f"📊 赛果: NIP {result.nip_score} : {result.opponent_score} {result.opponent}"
-            for result in recent_results
-        )
+        wins = sum(result.nip_score > result.opponent_score for result in recent_results)
+        losses = sum(result.nip_score < result.opponent_score for result in recent_results)
+        if wins + losses == len(recent_results) and wins <= losses:
+            review.append("💩 菜得没眼看，具体战绩不提也罢。")
+        else:
+            review.extend(
+                f"📊 赛果: NIP {result.nip_score} : {result.opponent_score} {result.opponent}"
+                for result in recent_results
+            )
     else:
         review.extend(["", "目前没有可用的往期赛果。"])
     sections.append("\n".join(review))
@@ -295,7 +300,16 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     if not notifiers:
         print("提示：尚未配置通知渠道，本次消息只会显示在运行记录中。")
 
-    news = [] if news_mode == "off" else get_news()[:2]
+    news: list[NewsItem] = []
+    news_source_failed = False
+    if news_mode != "off":
+        try:
+            news = get_news()[:2]
+        except SourceError as exc:
+            news_source_failed = True
+            print(f"新闻列表读取失败，本轮只跳过新闻，保留新闻缓存供下次检查：{exc}")
+            if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
+                print("::warning::新闻列表读取失败；本轮跳过新闻，其他功能继续，下次定时检查重试。")
     matches, results, transfers = get_nip_data()
     x_posts: list[XPost] | None = None
     if x_enabled:
@@ -465,6 +479,8 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         f"最近赛事赛果 {len(recent_results)} 场，"
         f"阵容动态 {len(transfers)} 条，新消息 {message_count} 条。"
     )
+    if news_source_failed:
+        print("注意：本轮新闻数据不可用，新闻 0 条不代表 HLTV 没有新新闻。")
     return 0
 
 
