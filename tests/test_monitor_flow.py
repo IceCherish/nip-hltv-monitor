@@ -425,6 +425,33 @@ class MonitorFlowTests(unittest.TestCase):
         self.assertEqual(app.DEFAULT_SCHEDULE_LOOKAHEAD_DAYS, 5)
         self.assertEqual([m.match_id for m in app._upcoming_matches_within(matches, now, 5)], ["five"])
 
+    def test_nip_read_failures_keep_cache_and_do_not_stop_news(self):
+        app.save_state(self.state_path, {
+            "initialized": True, "news_ids": ["old-news"],
+            "matches": {"cached-match": {"start_at": "2026-09-08T03:20:00Z"}},
+            "transfer_ids": ["cached-transfer"], "recent_result_ids": ["cached-result"],
+            "last_daily_schedule_date": "2026-09-07", "sent_reminders": [],
+        })
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7] as deliver_article:
+            nip_data.return_value = (None, None, None)
+            self.assertEqual(app.run_monitor(datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc)), 0)
+            self.assertEqual(deliver_article.call_count, 2)
+            deliver.assert_not_called()
+        state = app.load_state(self.state_path)
+        self.assertIn("cached-match", state["matches"])
+        self.assertEqual(state["transfer_ids"], ["cached-transfer"])
+        self.assertEqual(state["recent_result_ids"], ["cached-result"])
+        self.assertEqual(state["last_daily_schedule_date"], "2026-09-07")
+
+    def test_result_failure_does_not_claim_no_results_or_stop_schedule(self):
+        patches = self._patch_monitor()
+        with patches[0], patches[1], patches[2], patches[3] as nip_data, patches[4], patches[5], patches[6] as deliver, patches[7]:
+            nip_data.return_value = (self.matches, None, None)
+            app.run_monitor(datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc))
+            self.assertIn("本轮往期赛果暂时无法读取。", deliver.call_args.args[1])
+            self.assertNotIn("目前没有可用的往期赛果", deliver.call_args.args[1])
+
     def test_external_dispatch_is_treated_as_scheduled_check(self):
         environment = {
             "GITHUB_ACTIONS": "true",

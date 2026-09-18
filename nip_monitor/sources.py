@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import time
 from datetime import datetime, timezone
@@ -58,6 +59,8 @@ def fetch_via_reader(
             return text
         except (HTTPError, URLError, TimeoutError, SourceError) as exc:
             last_error = exc
+            if isinstance(exc, HTTPError) and exc.code in {401, 403, 422, 429}:
+                break
             if attempt < attempts:
                 time.sleep(2 ** (attempt - 1))
     raise SourceError(f"读取失败（已重试 {attempts} 次）：{url}: {last_error}")
@@ -495,13 +498,44 @@ def get_news() -> list[NewsItem]:
     return items
 
 
-def get_nip_data() -> tuple[list[Match], list[Result], list[Transfer]]:
-    matches_page = fetch_via_reader(
-        HLTV_MATCHES_URL,
-        response_format="html",
-        selector="[data-match-wrapper]",
-    )
-    results_page = fetch_via_reader(HLTV_RESULTS_URL)
-    transfers_page = fetch_via_reader(HLTV_TRANSFERS_URL)
-    matches = _enrich_missing_match_details(parse_matches_html(matches_page))
-    return matches, parse_results(results_page), parse_transfers(transfers_page)
+def get_nip_data() -> tuple[list[Match] | None, list[Result] | None, list[Transfer] | None]:
+    from .team_page import fetch_team_page, parse_team_page
+
+    matches = results = transfers = None
+    try:
+        matches, results = parse_team_page(fetch_team_page())
+        if matches is not None:
+            print("赛程读取来源：NIP 主页直连")
+        if results is not None:
+            print("赛果读取来源：NIP 主页直连")
+    except SourceError as exc:
+        print(f"NIP 主页直连不可用，尝试原有阅读服务路径：{exc}")
+    if matches is None:
+        try:
+            page = fetch_via_reader(HLTV_MATCHES_URL, response_format="html", selector="[data-match-wrapper]")
+            matches = _enrich_missing_match_details(parse_matches_html(page))
+            print("赛程读取来源：比赛列表阅读服务")
+        except SourceError as exc:
+            _nip_read_warning("赛程", exc)
+    if results is None:
+        try:
+            results = parse_results(fetch_via_reader(HLTV_RESULTS_URL))
+            print("赛果读取来源：赛果页阅读服务")
+        except SourceError as exc:
+            _nip_read_warning("赛果", exc)
+    try:
+        page = fetch_via_reader(HLTV_TRANSFERS_URL)
+        if any(marker in page.lower() for marker in ("just a moment", "performing security verification", "cf-chl-")):
+            raise SourceError("转会页返回了安全验证页面")
+        if "Ninjas in Pyjamas" not in page or "transfers" not in page.lower():
+            raise SourceError("转会页缺少可识别的 NIP 转会区域")
+        transfers = parse_transfers(page)
+    except SourceError as exc:
+        _nip_read_warning("阵容动态", exc)
+    return matches, results, transfers
+
+
+def _nip_read_warning(name: str, error: Exception) -> None:
+    print(f"{name}读取失败，本轮跳过该功能并保留缓存：{error}")
+    if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
+        print(f"::warning::{name}数据暂不可用；其他功能继续，下次检查重试。")

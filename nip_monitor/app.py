@@ -200,7 +200,7 @@ def _distance_to_match(match: Match, now: datetime) -> str:
 
 
 def _schedule_overview_message(
-    matches: list[Match], recent_results: list[Result], now: datetime
+    matches: list[Match], recent_results: list[Result], now: datetime, *, results_available: bool = True
 ) -> tuple[str, str]:
     title = "🥷 【NIP 近期赛程预告】"
     groups: dict[str, list[Match]] = {}
@@ -236,7 +236,9 @@ def _schedule_overview_message(
         sections.append("目前没有已公布的近期比赛。")
 
     review = ["---", "", "🏆 【往期赛事回顾】"]
-    if recent_results:
+    if not results_available:
+        review.extend(["", "本轮往期赛果暂时无法读取。"])
+    elif recent_results:
         review.append("")
         review.append(f"🎮 赛事: {recent_results[0].event}")
         wins = sum(result.nip_score > result.opponent_score for result in recent_results)
@@ -310,7 +312,14 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             print(f"新闻列表读取失败，本轮只跳过新闻，保留新闻缓存供下次检查：{exc}")
             if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
                 print("::warning::新闻列表读取失败；本轮跳过新闻，其他功能继续，下次定时检查重试。")
-    matches, results, transfers = get_nip_data()
+    try:
+        matches_data, results_data, transfers_data = get_nip_data()
+    except SourceError as exc:
+        print(f"NIP 数据读取失败，本轮跳过相关功能，新闻继续：{exc}")
+        matches_data = results_data = transfers_data = None
+    matches = matches_data or []
+    results = results_data or []
+    transfers = transfers_data or []
     x_posts: list[XPost] | None = None
     if x_enabled:
         try:
@@ -398,7 +407,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     schedule_sent = schedule_needed and bool(schedule_matches)
     if schedule_sent:
         notifications.append(
-            _schedule_overview_message(schedule_matches, recent_results, now)
+            _schedule_overview_message(schedule_matches, recent_results, now, results_available=results_data is not None)
         )
 
     sent_reminders = set(state["sent_reminders"])
@@ -453,14 +462,17 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             [item.news_id for item in news if item.news_id not in failed_news_ids]
             + state["news_ids"]
         ))[:100],
-        "matches": {
-            item.match_id: {**item.to_dict(), "signature": item.signature()} for item in matches
-        },
-        "transfer_ids": [item.transfer_id for item in transfers[:100]],
         "sent_reminders": sorted(sent_reminders),
-        "recent_result_ids": [result.result_id for result in recent_results],
         "last_daily_schedule_date": last_daily_schedule_date,
     }
+    if matches_data is not None:
+        next_values["matches"] = {
+            item.match_id: {**item.to_dict(), "signature": item.signature()} for item in matches
+        }
+    if transfers_data is not None:
+        next_values["transfer_ids"] = [item.transfer_id for item in transfers[:100]]
+    if results_data is not None:
+        next_values["recent_result_ids"] = [result.result_id for result in recent_results]
     if x_posts is not None:
         next_values["x_initialized"] = True
         next_values["x_post_ids"] = [
@@ -481,6 +493,8 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     )
     if news_source_failed:
         print("注意：本轮新闻数据不可用，新闻 0 条不代表 HLTV 没有新新闻。")
+    if matches_data is None or results_data is None or transfers_data is None:
+        print("注意：部分 NIP 数据不可用；上述 0 场或 0 条不代表没有比赛、赛果或阵容动态。")
     return 0
 
 
