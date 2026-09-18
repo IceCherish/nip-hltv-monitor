@@ -266,14 +266,24 @@ def get_article(item: NewsItem) -> Article:
         article = _get_article_direct(item)
     except SourceError as direct_error:
         print(f"新闻 {item.news_id} 正文直连失败，尝试阅读服务备用路径：{direct_error}")
-        try:
-            raw_html = fetch_via_reader(item.url, response_format="html", selector=".newstext-con")
-            article = parse_article_html(raw_html, item, require_body_container=True)
-        except SourceError as reader_error:
-            raise SourceError(
-                f"新闻 {item.news_id} 正文两条读取路径均失败；直连：{direct_error}；阅读服务：{reader_error}"
-            ) from reader_error
-        print(f"新闻 {item.news_id} 正文读取来源：阅读服务备用路径")
-        return article
+        reader_errors: list[str] = []
+        for fresh in (False, True):
+            try:
+                if fresh:
+                    print(f"新闻 {item.news_id} 阅读服务常规模式失败，刷新缓存读取完整 HTML 后在本地提取正文。")
+                    raw_html = fetch_via_reader(item.url, response_format="html", attempts=1, fresh_full_page=True)
+                else:
+                    raw_html = fetch_via_reader(item.url, response_format="html", selector=".newstext-con")
+                article = parse_article_html(raw_html, item, require_body_container=True)
+            except SourceError as reader_error:
+                reader_errors.append(f"{'刷新整页' if fresh else '常规筛选'}：{reader_error}")
+                continue
+            mode = "阅读服务刷新整页备用路径" if fresh else "阅读服务备用路径"
+            print(f"新闻 {item.news_id} 正文读取来源：{mode}")
+            return article
+        raise SourceError(
+            f"新闻 {item.news_id} 正文两条读取路径均失败；直连：{direct_error}；阅读服务："
+            + "；".join(reader_errors)
+        )
     print(f"新闻 {item.news_id} 正文读取来源：HLTV 直连")
     return article

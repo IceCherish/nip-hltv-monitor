@@ -33,15 +33,19 @@ def fetch_via_reader(
     cache_tolerance: int = 300,
     response_format: str = "markdown",
     selector: str = "",
+    fresh_full_page: bool = False,
 ) -> str:
     headers = {
         "User-Agent": "nip-hltv-monitor/1.0 (personal, non-commercial monitor)",
         "Accept": "text/plain",
         "X-Respond-With": response_format,
-        "X-Cache-Tolerance": str(cache_tolerance),
-        "X-Timeout": "45",
     }
-    if selector:
+    if fresh_full_page:
+        headers["X-No-Cache"] = "true"
+    else:
+        headers["X-Cache-Tolerance"] = str(cache_tolerance)
+        headers["X-Timeout"] = "45"
+    if selector and not fresh_full_page:
         headers["X-Target-Selector"] = selector
     request = Request(
         READER_BASE + url,
@@ -63,7 +67,7 @@ def fetch_via_reader(
                 break
             if attempt < attempts:
                 time.sleep(2 ** (attempt - 1))
-    raise SourceError(f"读取失败（已重试 {attempts} 次）：{url}: {last_error}")
+    raise SourceError(f"读取失败（已尝试 {attempt} 次）：{url}: {last_error}")
 
 
 def parse_news(markdown: str) -> list[NewsItem]:

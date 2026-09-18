@@ -6,6 +6,7 @@ from nip_monitor import articles
 from nip_monitor.app import _article_mentions_nip
 from nip_monitor.models import NewsItem
 from nip_monitor.sources import SourceError
+from nip_monitor import sources
 
 
 BODY = '<div class="newstext-con"><p>Real article &amp; text.</p><div><picture><img src="https://img-cdn.hltv.org/gallerypicture/body.jpg"></picture></div><p>Second paragraph.</p></div>'
@@ -86,3 +87,41 @@ class ArticleFetchTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(SourceError, "正文两条读取路径均失败.*403.*422"):
                 articles.get_article(self.item)
+
+    def test_reader_selector_422_uses_fresh_full_page(self):
+        with patch.object(articles, "urlopen", side_effect=HTTPError(self.item.url, 403, "Forbidden", None, None)), patch.object(
+            articles, "fetch_via_reader", side_effect=[SourceError("selector 422"), FULL_PAGE]
+        ) as reader:
+            article = articles.get_article(self.item)
+        self.assertEqual(reader.call_count, 2)
+        self.assertTrue(reader.call_args.kwargs["fresh_full_page"])
+        self.assertEqual(reader.call_args.kwargs["attempts"], 1)
+        self.assertNotIn("selector", reader.call_args.kwargs)
+        self.assertFalse(_article_mentions_nip(article))
+        self.assertEqual([b.kind for b in article.blocks], ["text", "image", "text"])
+
+    def test_reader_verification_uses_fresh_full_page(self):
+        with patch.object(articles, "_get_article_direct", side_effect=SourceError("403")), patch.object(
+            articles, "fetch_via_reader", side_effect=['<html><title>Just a moment...</title></html>', BODY]
+        ) as reader:
+            article = articles.get_article(self.item)
+        self.assertEqual(len(article.blocks), 3)
+        self.assertEqual(reader.call_count, 2)
+
+    def test_reader_fresh_headers_use_default_timing_and_no_selector(self):
+        with patch.object(sources, "urlopen", return_value=self.response()) as fetch:
+            sources.fetch_via_reader(self.item.url, response_format="html", selector=".newstext-con", fresh_full_page=True, attempts=1)
+        headers = {key.lower(): value for key, value in fetch.call_args.args[0].headers.items()}
+        self.assertEqual(headers["x-no-cache"], "true")
+        self.assertEqual(headers["x-respond-with"], "html")
+        self.assertNotIn("x-target-selector", headers)
+        self.assertNotIn("x-timeout", headers)
+        self.assertNotIn("x-cache-tolerance", headers)
+
+    def test_reader_http_200_verification_in_both_modes_is_failure(self):
+        with patch.object(articles, "_get_article_direct", side_effect=SourceError("403")), patch.object(
+            articles, "fetch_via_reader", return_value='<html><title>Just a moment...</title></html>'
+        ) as reader:
+            with self.assertRaisesRegex(SourceError, "正文两条读取路径均失败.*安全验证"):
+                articles.get_article(self.item)
+        self.assertEqual(reader.call_count, 2)
