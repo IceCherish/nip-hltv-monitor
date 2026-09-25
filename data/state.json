@@ -6,8 +6,8 @@
       "event": "1win Private Club Season 1",
       "match_id": "2398094",
       "opponent": "3DMAX",
-      "signature": "3DMAX|1win Private Club Season 1|2026-09-25T12:00:00Z",
-      "start_at": "2026-09-25T12:00:00Z",
+      "signature": "3DMAX|1win Private Club Season 1|2026-09-25T12:40:00Z",
+      "start_at": "2026-09-25T12:40:00Z",
       "url": "https://www.hltv.org/matches/2398094/ninjas-in-pyjamas-vs-3dmax-1win-private-club-season-1"
     }
   },
@@ -84,6 +84,6 @@
     "2397893"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-09-25T10:00:37.319827Z",
+  "updated_at": "2026-09-25T11:30:28.578042Z",
   "version": 1
 }
