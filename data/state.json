@@ -2,16 +2,18 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-09-25",
   "matches": {
-    "2398094": {
+    "2398238": {
       "event": "1win Private Club Season 1",
-      "match_id": "2398094",
-      "opponent": "3DMAX",
-      "signature": "3DMAX|1win Private Club Season 1|2026-09-25T14:15:00Z",
-      "start_at": "2026-09-25T14:15:00Z",
-      "url": "https://www.hltv.org/matches/2398094/ninjas-in-pyjamas-vs-3dmax-1win-private-club-season-1"
+      "match_id": "2398238",
+      "opponent": "SINNERS",
+      "signature": "SINNERS|1win Private Club Season 1|2026-09-26T15:00:00Z",
+      "start_at": "2026-09-26T15:00:00Z",
+      "url": "https://www.hltv.org/matches/2398238/sinners-vs-ninjas-in-pyjamas-1win-private-club-season-1"
     }
   },
   "news_ids": [
+    "45577",
+    "45576",
     "45561",
     "45575",
     "45574",
@@ -83,6 +85,6 @@
     "2398094"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-09-25T16:45:21.952289Z",
+  "updated_at": "2026-09-25T23:00:37.621483Z",
   "version": 1
 }
