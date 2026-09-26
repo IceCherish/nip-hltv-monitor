@@ -2,17 +2,18 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-09-26",
   "matches": {
-    "2398238": {
+    "2398242": {
       "event": "1win Private Club Season 1",
-      "match_id": "2398238",
-      "opponent": "SINNERS",
-      "signature": "SINNERS|1win Private Club Season 1|2026-09-26T15:00:00Z",
-      "start_at": "2026-09-26T15:00:00Z",
-      "url": "https://www.hltv.org/matches/2398238/sinners-vs-ninjas-in-pyjamas-1win-private-club-season-1"
+      "match_id": "2398242",
+      "opponent": "magic",
+      "signature": "magic|1win Private Club Season 1|2026-09-27T15:00:00Z",
+      "start_at": "2026-09-27T15:00:00Z",
+      "url": "https://www.hltv.org/matches/2398242/ninjas-in-pyjamas-vs-magic-1win-private-club-season-1"
     }
   },
   "news_ids": [
     "45561",
+    "45579",
     "45577",
     "45576",
     "45575",
@@ -71,6 +72,7 @@
     "45510"
   ],
   "recent_result_ids": [
+    "2398238",
     "2398094"
   ],
   "sent_reminders": [
@@ -86,6 +88,6 @@
     "2398238"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-09-26T14:30:28.328526Z",
+  "updated_at": "2026-09-26T23:00:37.103894Z",
   "version": 1
 }
