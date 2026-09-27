@@ -6,12 +6,13 @@
       "event": "1win Private Club Season 1",
       "match_id": "2398242",
       "opponent": "magic",
-      "signature": "magic|1win Private Club Season 1|2026-09-27T15:00:00Z",
-      "start_at": "2026-09-27T15:00:00Z",
+      "signature": "magic|1win Private Club Season 1|2026-09-27T15:20:00Z",
+      "start_at": "2026-09-27T15:20:00Z",
       "url": "https://www.hltv.org/matches/2398242/ninjas-in-pyjamas-vs-magic-1win-private-club-season-1"
     }
   },
   "news_ids": [
+    "45582",
     "45581",
     "45580",
     "45561",
@@ -91,6 +92,6 @@
     "2398242"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-09-27T14:30:30.052442Z",
+  "updated_at": "2026-09-27T14:45:20.536190Z",
   "version": 1
 }
