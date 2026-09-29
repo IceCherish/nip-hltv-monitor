@@ -35,6 +35,26 @@ class MonitorFlowTests(unittest.TestCase):
     def tearDown(self):
         self.temp_dir.cleanup()
 
+    def test_news_expires_only_after_24_hours(self):
+        now = datetime(2026, 9, 25, 12, 0, tzinfo=timezone.utc)
+        exactly_24_hours_old = NewsItem(
+            "news-24h",
+            "NIP news",
+            "",
+            "https://example.test/news-24h",
+            "Thu, 24 Sep 2026 12:00:00 GMT",
+        )
+        over_24_hours_old = NewsItem(
+            "news-old",
+            "NIP news",
+            "",
+            "https://example.test/news-old",
+            "Thu, 24 Sep 2026 11:59:59 GMT",
+        )
+
+        self.assertFalse(app._news_is_expired(exactly_24_hours_old, now))
+        self.assertTrue(app._news_is_expired(over_24_hours_old, now))
+
     def test_reminder_message_uses_dynamic_countdown_style(self):
         title, regular = app._reminder_message(self.matches[0], 29)
         _, urgent = app._reminder_message(self.matches[0], 8)
@@ -216,7 +236,7 @@ class MonitorFlowTests(unittest.TestCase):
             retried_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
             self.assertEqual(retried_ids, ["6"])
 
-    def test_failed_news_is_not_retried_after_one_hour(self):
+    def test_failed_news_is_retried_until_24_hours_then_expires(self):
         self.news = [
             NewsItem(
                 "fresh-then-stale",
@@ -240,6 +260,15 @@ class MonitorFlowTests(unittest.TestCase):
 
             translate.reset_mock()
             app.run_monitor(datetime(2026, 9, 8, 10, 31, tzinfo=timezone.utc))
+
+            self.assertEqual(translate.call_count, 1)
+            self.assertNotIn(
+                "fresh-then-stale",
+                app.load_state(self.state_path)["news_ids"],
+            )
+
+            translate.reset_mock()
+            app.run_monitor(datetime(2026, 9, 9, 9, 30, 1, tzinfo=timezone.utc))
 
             translate.assert_not_called()
             self.assertIn(
@@ -502,7 +531,7 @@ class MonitorFlowTests(unittest.TestCase):
         deliver_article.assert_not_called()
         self.assertEqual(app.load_state(self.state_path), state_before)
 
-    def test_seven_am_resumes_but_does_not_send_two_hour_old_news(self):
+    def test_seven_am_resumes_and_sends_two_hour_old_news(self):
         self.news = [
             NewsItem(
                 "overnight-news",
@@ -537,10 +566,10 @@ class MonitorFlowTests(unittest.TestCase):
             )
 
         self.assertEqual(result, 0)
-        get_article.assert_not_called()
-        translate.assert_not_called()
+        get_article.assert_called_once_with(self.news[0])
+        self.assertEqual(translate.call_count, 1)
         deliver.assert_not_called()
-        deliver_article.assert_not_called()
+        self.assertEqual(deliver_article.call_count, 1)
         self.assertIn(
             "overnight-news",
             app.load_state(self.state_path)["news_ids"],

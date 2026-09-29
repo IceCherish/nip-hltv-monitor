@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATE_PATH = ROOT / "data" / "state.json"
 SHANGHAI = timezone(timedelta(hours=8), name="Asia/Shanghai")
 DEFAULT_SCHEDULE_LOOKAHEAD_DAYS = 5
-NEWS_MAX_AGE = timedelta(hours=1)
+NEWS_MAX_AGE = timedelta(hours=24)
 NIP_NEWS_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])NIP(?![A-Za-z0-9])"
     r"|\bNinjas\s+in\s+P[ya]jamas\b"
@@ -306,7 +306,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     ]
     if newly_expired_news:
         print(
-            "已跳过超过 1 小时的新闻："
+            "已跳过超过 24 小时的新闻："
             + ", ".join(item.news_id for item in newly_expired_news)
         )
     local_now = now.astimezone(SHANGHAI)
@@ -392,7 +392,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             continue
         delivery_now = now if fixed_now else datetime.now(timezone.utc)
         if _news_is_expired(item, delivery_now):
-            print(f"新闻 {item.news_id} 翻译完成时已超过 1 小时，已跳过。")
+            print(f"新闻 {item.news_id} 翻译完成时已超过 24 小时，已跳过。")
             continue
         deliver_article(_news_label(item), article, notifiers)
         sent_article_count += 1
