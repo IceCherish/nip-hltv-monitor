@@ -1,16 +1,7 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-09-28",
-  "matches": {
-    "2398245": {
-      "event": "1win Private Club Season 1",
-      "match_id": "2398245",
-      "opponent": "GamerLegion",
-      "signature": "GamerLegion|1win Private Club Season 1|2026-09-28T14:00:00Z",
-      "start_at": "2026-09-28T14:00:00Z",
-      "url": "https://www.hltv.org/matches/2398245/ninjas-in-pyjamas-vs-gamerlegion-1win-private-club-season-1"
-    }
-  },
+  "matches": {},
   "news_ids": [
     "45592",
     "45587",
@@ -103,6 +94,6 @@
     "2398245"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-09-28T23:00:34.545220Z",
+  "updated_at": "2026-09-29T01:45:19.583453Z",
   "version": 1
 }
