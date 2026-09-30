@@ -33,6 +33,14 @@
       "signature": "SportsBetExpert|ROG JOURNEY Autumn 2026|2026-10-02T15:00:00Z",
       "start_at": "2026-10-02T15:00:00Z",
       "url": "https://www.hltv.org/matches/2398928/ninjas-in-pyjamas-vs-sportsbetexpert-rog-journey-autumn-2026"
+    },
+    "2398931": {
+      "event": "ROG JOURNEY Autumn 2026",
+      "match_id": "2398931",
+      "opponent": "BBL",
+      "signature": "BBL|ROG JOURNEY Autumn 2026|2026-10-02T16:00:00Z",
+      "start_at": "2026-10-02T16:00:00Z",
+      "url": "https://www.hltv.org/matches/2398931/ninjas-in-pyjamas-vs-bbl-rog-journey-autumn-2026"
     }
   },
   "news_ids": [
@@ -131,6 +139,6 @@
     "2398245"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-09-30T11:00:34.830051Z",
+  "updated_at": "2026-09-30T11:15:23.250080Z",
   "version": 1
 }
