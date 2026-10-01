@@ -1,6 +1,6 @@
 {
   "initialized": true,
-  "last_daily_schedule_date": "2026-09-30",
+  "last_daily_schedule_date": "2026-10-01",
   "matches": {
     "2398919": {
       "event": "ROG JOURNEY Autumn 2026",
@@ -140,6 +140,6 @@
     "2398245"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-09-30T23:00:35.745303Z",
+  "updated_at": "2026-10-01T02:00:34.366182Z",
   "version": 1
 }
