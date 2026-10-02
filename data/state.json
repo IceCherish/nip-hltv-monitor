@@ -2,32 +2,25 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-10-02",
   "matches": {
-    "2398925": {
-      "event": "ROG JOURNEY Autumn 2026",
-      "match_id": "2398925",
-      "opponent": "HAVU",
-      "signature": "HAVU|ROG JOURNEY Autumn 2026|2026-10-02T14:25:00Z",
-      "start_at": "2026-10-02T14:25:00Z",
-      "url": "https://www.hltv.org/matches/2398925/ninjas-in-pyjamas-vs-havu-rog-journey-autumn-2026"
-    },
     "2398928": {
       "event": "ROG JOURNEY Autumn 2026",
       "match_id": "2398928",
       "opponent": "SportsBetExpert",
-      "signature": "SportsBetExpert|ROG JOURNEY Autumn 2026|2026-10-02T15:25:00Z",
-      "start_at": "2026-10-02T15:25:00Z",
+      "signature": "SportsBetExpert|ROG JOURNEY Autumn 2026|2026-10-02T15:30:00Z",
+      "start_at": "2026-10-02T15:30:00Z",
       "url": "https://www.hltv.org/matches/2398928/ninjas-in-pyjamas-vs-sportsbetexpert-rog-journey-autumn-2026"
     },
     "2398931": {
       "event": "ROG JOURNEY Autumn 2026",
       "match_id": "2398931",
       "opponent": "BBL",
-      "signature": "BBL|ROG JOURNEY Autumn 2026|2026-10-02T16:00:00Z",
-      "start_at": "2026-10-02T16:00:00Z",
+      "signature": "BBL|ROG JOURNEY Autumn 2026|2026-10-02T16:20:00Z",
+      "start_at": "2026-10-02T16:20:00Z",
       "url": "https://www.hltv.org/matches/2398931/ninjas-in-pyjamas-vs-bbl-rog-journey-autumn-2026"
     }
   },
   "news_ids": [
+    "45616",
     "45615",
     "45605",
     "45587",
@@ -117,6 +110,7 @@
     "45510"
   ],
   "recent_result_ids": [
+    "2398925",
     "2398922",
     "2398919"
   ],
@@ -139,6 +133,6 @@
     "2398928"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-02T15:15:22.830915Z",
+  "updated_at": "2026-10-02T15:33:38.308036Z",
   "version": 1
 }
