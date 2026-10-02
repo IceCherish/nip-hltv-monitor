@@ -2,20 +2,12 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-10-02",
   "matches": {
-    "2398919": {
-      "event": "ROG JOURNEY Autumn 2026",
-      "match_id": "2398919",
-      "opponent": "XEPT",
-      "signature": "XEPT|ROG JOURNEY Autumn 2026|2026-10-02T12:00:00Z",
-      "start_at": "2026-10-02T12:00:00Z",
-      "url": "https://www.hltv.org/matches/2398919/ninjas-in-pyjamas-vs-xept-rog-journey-autumn-2026"
-    },
     "2398922": {
       "event": "ROG JOURNEY Autumn 2026",
       "match_id": "2398922",
       "opponent": "Sangal",
-      "signature": "Sangal|ROG JOURNEY Autumn 2026|2026-10-02T13:00:00Z",
-      "start_at": "2026-10-02T13:00:00Z",
+      "signature": "Sangal|ROG JOURNEY Autumn 2026|2026-10-02T13:30:00Z",
+      "start_at": "2026-10-02T13:30:00Z",
       "url": "https://www.hltv.org/matches/2398922/ninjas-in-pyjamas-vs-sangal-rog-journey-autumn-2026"
     },
     "2398925": {
@@ -131,10 +123,7 @@
     "45510"
   ],
   "recent_result_ids": [
-    "2398245",
-    "2398242",
-    "2398238",
-    "2398094"
+    "2398919"
   ],
   "sent_reminders": [
     "2397722",
@@ -153,6 +142,6 @@
     "2398922"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-02T12:30:29.443726Z",
+  "updated_at": "2026-10-02T12:45:22.241793Z",
   "version": 1
 }
