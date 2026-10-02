@@ -2,14 +2,6 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-10-02",
   "matches": {
-    "2398928": {
-      "event": "ROG JOURNEY Autumn 2026",
-      "match_id": "2398928",
-      "opponent": "SportsBetExpert",
-      "signature": "SportsBetExpert|ROG JOURNEY Autumn 2026|2026-10-02T15:30:00Z",
-      "start_at": "2026-10-02T15:30:00Z",
-      "url": "https://www.hltv.org/matches/2398928/ninjas-in-pyjamas-vs-sportsbetexpert-rog-journey-autumn-2026"
-    },
     "2398931": {
       "event": "ROG JOURNEY Autumn 2026",
       "match_id": "2398931",
@@ -110,6 +102,7 @@
     "45510"
   ],
   "recent_result_ids": [
+    "2398928",
     "2398925",
     "2398922",
     "2398919"
@@ -134,6 +127,6 @@
     "2398931"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-02T16:00:39.032351Z",
+  "updated_at": "2026-10-02T16:15:24.604080Z",
   "version": 1
 }
