@@ -6,12 +6,13 @@
       "event": "ROG JOURNEY Autumn 2026",
       "match_id": "2398931",
       "opponent": "BBL",
-      "signature": "BBL|ROG JOURNEY Autumn 2026|2026-10-02T16:20:00Z",
-      "start_at": "2026-10-02T16:20:00Z",
+      "signature": "BBL|ROG JOURNEY Autumn 2026|2026-10-02T16:25:00Z",
+      "start_at": "2026-10-02T16:25:00Z",
       "url": "https://www.hltv.org/matches/2398931/ninjas-in-pyjamas-vs-bbl-rog-journey-autumn-2026"
     }
   },
   "news_ids": [
+    "45612",
     "45616",
     "45615",
     "45605",
@@ -127,6 +128,6 @@
     "2398931"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-02T16:15:24.604080Z",
+  "updated_at": "2026-10-02T16:30:30.480206Z",
   "version": 1
 }
