@@ -2,16 +2,18 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-10-02",
   "matches": {
-    "2398931": {
+    "2398968": {
       "event": "ROG JOURNEY Autumn 2026",
-      "match_id": "2398931",
-      "opponent": "BBL",
-      "signature": "BBL|ROG JOURNEY Autumn 2026|2026-10-02T16:25:00Z",
-      "start_at": "2026-10-02T16:25:00Z",
-      "url": "https://www.hltv.org/matches/2398931/ninjas-in-pyjamas-vs-bbl-rog-journey-autumn-2026"
+      "match_id": "2398968",
+      "opponent": "SINNERS",
+      "signature": "SINNERS|ROG JOURNEY Autumn 2026|2026-10-03T09:00:00Z",
+      "start_at": "2026-10-03T09:00:00Z",
+      "url": "https://www.hltv.org/matches/2398968/sinners-vs-ninjas-in-pyjamas-rog-journey-autumn-2026"
     }
   },
   "news_ids": [
+    "45618",
+    "45613",
     "45612",
     "45616",
     "45615",
@@ -103,6 +105,8 @@
     "45510"
   ],
   "recent_result_ids": [
+    "2398964",
+    "2398931",
     "2398928",
     "2398925",
     "2398922",
@@ -128,6 +132,6 @@
     "2398931"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-02T16:30:30.480206Z",
+  "updated_at": "2026-10-02T23:01:15.324772Z",
   "version": 1
 }
