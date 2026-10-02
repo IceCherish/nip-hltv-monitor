@@ -14,8 +14,8 @@
       "event": "ROG JOURNEY Autumn 2026",
       "match_id": "2398925",
       "opponent": "HAVU",
-      "signature": "HAVU|ROG JOURNEY Autumn 2026|2026-10-02T14:00:00Z",
-      "start_at": "2026-10-02T14:00:00Z",
+      "signature": "HAVU|ROG JOURNEY Autumn 2026|2026-10-02T14:15:00Z",
+      "start_at": "2026-10-02T14:15:00Z",
       "url": "https://www.hltv.org/matches/2398925/ninjas-in-pyjamas-vs-havu-rog-journey-autumn-2026"
     },
     "2398928": {
@@ -36,6 +36,7 @@
     }
   },
   "news_ids": [
+    "45605",
     "45587",
     "45610",
     "45609",
@@ -143,6 +144,6 @@
     "2398925"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-02T13:30:32.748791Z",
+  "updated_at": "2026-10-02T14:00:36.690513Z",
   "version": 1
 }
