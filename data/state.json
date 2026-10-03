@@ -1,16 +1,7 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-10-03",
-  "matches": {
-    "2398972": {
-      "event": "ROG JOURNEY Autumn 2026",
-      "match_id": "2398972",
-      "opponent": "BBL",
-      "signature": "BBL|ROG JOURNEY Autumn 2026|2026-10-03T12:35:00Z",
-      "start_at": "2026-10-03T12:35:00Z",
-      "url": "https://www.hltv.org/matches/2398972/ninjas-in-pyjamas-vs-bbl-rog-journey-autumn-2026"
-    }
-  },
+  "matches": {},
   "news_ids": [
     "45622",
     "45623",
@@ -109,6 +100,7 @@
     "45510"
   ],
   "recent_result_ids": [
+    "2398972",
     "2398968",
     "2398964",
     "2398931",
@@ -139,6 +131,6 @@
     "2398972"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-03T13:15:21.305304Z",
+  "updated_at": "2026-10-03T14:30:30.227047Z",
   "version": 1
 }
