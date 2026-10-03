@@ -1,17 +1,10 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-10-03",
-  "matches": {
-    "2398974": {
-      "event": "ROG JOURNEY Autumn 2026",
-      "match_id": "2398974",
-      "opponent": "Eternal Fire",
-      "signature": "Eternal Fire|ROG JOURNEY Autumn 2026|2026-10-03T18:00:00Z",
-      "start_at": "2026-10-03T18:00:00Z",
-      "url": "https://www.hltv.org/matches/2398974/ninjas-in-pyjamas-vs-eternal-fire-rog-journey-autumn-2026"
-    }
-  },
+  "matches": {},
   "news_ids": [
+    "45628",
+    "45627",
     "45622",
     "45623",
     "45621",
@@ -109,6 +102,7 @@
     "45510"
   ],
   "recent_result_ids": [
+    "2398974",
     "2398972",
     "2398968",
     "2398964",
@@ -140,6 +134,6 @@
     "2398972"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-03T16:00:35.073467Z",
+  "updated_at": "2026-10-03T23:00:35.561118Z",
   "version": 1
 }
