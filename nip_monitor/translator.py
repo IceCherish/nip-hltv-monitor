@@ -278,7 +278,33 @@ def _chunks(text: str, limit: int = 3500) -> list[str]:
     return chunks
 
 
-def translate_article(article: Article) -> Article:
+_NIP_DISPLAY_MARKER = "[[NIPHLTVDISPLAYNAME]]"
+
+
+def _apply_nip_display_name(text: str, display_name: str) -> str:
+    name = display_name.strip() or "废物NIP"
+    normalized = re.sub(
+        r"\bNinjas\s+in\s+P[ya]jamas\b|\bthe\s+Ninjas\b",
+        _NIP_DISPLAY_MARKER,
+        text,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"废物NIP|复兴NIP|王朝NIP|睡衣忍者|忍者睡衣",
+        _NIP_DISPLAY_MARKER,
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"(?<![A-Za-z0-9])NIP(?![A-Za-z0-9])",
+        _NIP_DISPLAY_MARKER,
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    return normalized.replace(_NIP_DISPLAY_MARKER, name)
+
+
+def translate_article(article: Article, *, nip_display_name: str = "废物NIP") -> Article:
     segment_keys: list[tuple[str, object]] = [("title", 0)]
     segment_values = [article.title]
     text_count = 0
@@ -295,7 +321,10 @@ def translate_article(article: Article) -> Article:
                     segment_keys.append(key)
                     segment_values.append(match.event)
 
-    translated_values = _translate_segments(segment_values)
+    translated_values = [
+        _apply_nip_display_name(value, nip_display_name)
+        for value in _translate_segments(segment_values)
+    ]
     translated = dict(zip(segment_keys, translated_values))
     translated_blocks = []
     for index, block in enumerate(article.blocks):

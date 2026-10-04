@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
 
 from nip_monitor import translator
-from nip_monitor.app import _schedule_overview_message
+from nip_monitor.app import _nip_news_display_name, _schedule_overview_message
 from nip_monitor.articles import Article, ArticleBlock, ArticleMatch, parse_article_html
 from nip_monitor.models import Match, NewsItem, Result
 from nip_monitor.notifiers import (
@@ -56,6 +56,20 @@ class ParserTests(unittest.TestCase):
         term_section = translator.GROQ_SYSTEM_PROMPT.split("只采用以下固定术语：", 1)[1].split("。不要自行添加", 1)[0]
         actual = {item.strip() for item in term_section.split("；")}
         self.assertEqual(actual, expected)
+
+    def test_dynamic_nip_display_name_is_applied_after_translation(self):
+        article = Article(
+            title="Ninjas in Pyjamas and NIP",
+            original_url="https://example.test/news",
+            published_at="",
+            blocks=(),
+        )
+        with patch(
+            "nip_monitor.translator.translate_text",
+            return_value="废物NIP 与 NIP",
+        ):
+            translated = translate_article(article, nip_display_name="王朝NIP")
+        self.assertEqual(translated.title, "王朝NIP 与 王朝NIP")
 
     def test_auto_translation_uses_groq_before_tencent_and_google(self):
         environment = {
@@ -641,6 +655,23 @@ Thursday - 2026-09-10
                 self.assertIn("🎮 赛事: Recent Event", rendered)
                 self.assertIn("💩 菜得没眼看，具体战绩不提也罢。", rendered)
                 self.assertNotIn("📊 赛果:", rendered)
+
+    def test_nip_news_display_name_follows_latest_event_results(self):
+        losing = [
+            Result("1", "A", 2, 0, "Event"),
+            Result("2", "B", 0, 2, "Event"),
+        ]
+        winning = [
+            Result("3", "A", 2, 0, "Event"),
+            Result("4", "B", 2, 1, "Event"),
+            Result("5", "C", 0, 2, "Event"),
+        ]
+        champion = [Result("6", "A", 2, 0, "Event - 1st")]
+
+        self.assertEqual(_nip_news_display_name(losing), "废物NIP")
+        self.assertEqual(_nip_news_display_name(winning), "复兴NIP")
+        self.assertEqual(_nip_news_display_name(champion), "王朝NIP")
+        self.assertEqual(_nip_news_display_name([]), "废物NIP")
 
     def test_tied_score_does_not_count_as_completed_loss(self):
         now = datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc)

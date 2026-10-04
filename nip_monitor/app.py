@@ -86,6 +86,29 @@ def _latest_event_results(results: list[Result]) -> list[Result]:
     return [result for result in results if result.event == event]
 
 
+def _recent_event_is_bad(recent_results: list[Result]) -> bool:
+    if not recent_results:
+        return False
+    wins = sum(result.nip_score > result.opponent_score for result in recent_results)
+    losses = sum(result.nip_score < result.opponent_score for result in recent_results)
+    return wins + losses == len(recent_results) and wins <= losses
+
+
+def _recent_event_is_first_place(recent_results: list[Result]) -> bool:
+    return bool(
+        recent_results
+        and re.search(r"\b1st\s*$", recent_results[0].event, re.IGNORECASE)
+    )
+
+
+def _nip_news_display_name(recent_results: list[Result]) -> str:
+    if _recent_event_is_first_place(recent_results):
+        return "王朝NIP"
+    if recent_results and not _recent_event_is_bad(recent_results):
+        return "复兴NIP"
+    return "废物NIP"
+
+
 def _news_is_expired(item: NewsItem, now: datetime) -> bool:
     if not item.published_at:
         return False
@@ -209,9 +232,7 @@ def _schedule_overview_message(
     elif recent_results:
         review.append("")
         review.append(f"🎮 赛事: {recent_results[0].event}")
-        wins = sum(result.nip_score > result.opponent_score for result in recent_results)
-        losses = sum(result.nip_score < result.opponent_score for result in recent_results)
-        if wins + losses == len(recent_results) and wins <= losses:
+        if _recent_event_is_bad(recent_results):
             review.append("💩 菜得没眼看，具体战绩不提也罢。")
         else:
             review.extend(
@@ -295,6 +316,10 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     )
     recent_results = _latest_event_results(results)
     state = load_state(STATE_PATH)
+    if results_data is not None:
+        nip_display_name = _nip_news_display_name(recent_results)
+    else:
+        nip_display_name = state.get("nip_display_name", "废物NIP")
     notifications: list[tuple[str, str]] = []
     news_to_send: list[NewsItem] = []
     x_posts_to_send: list[XPost] = []
@@ -385,7 +410,8 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             if not _article_mentions_nip(article):
                 print(f"新闻 {item.news_id} 未提及 NIP，已跳过并记入去重记录。")
                 continue
-            article = translate_article(article)
+            print(f"新闻 {item.news_id} 使用战队称呼：{nip_display_name}")
+            article = translate_article(article, nip_display_name=nip_display_name)
         except (SourceError, TranslationError) as exc:
             failed_news_ids.add(item.news_id)
             print(f"新闻 {item.news_id} 本轮暂缓，下次检查重试：{exc}")
@@ -415,6 +441,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
         }
     if results_data is not None:
         next_values["recent_result_ids"] = [result.result_id for result in recent_results]
+        next_values["nip_display_name"] = nip_display_name
     if x_posts is not None:
         next_values["x_initialized"] = True
         next_values["x_post_ids"] = [

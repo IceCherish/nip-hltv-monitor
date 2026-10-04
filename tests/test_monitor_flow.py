@@ -112,7 +112,7 @@ class MonitorFlowTests(unittest.TestCase):
                     blocks=(ArticleBlock(kind="text", text="NIP"),),
                 ),
             ),
-            patch.object(app, "translate_article", side_effect=lambda item: item),
+            patch.object(app, "translate_article", side_effect=lambda item, **kwargs: item),
             patch.object(app, "deliver"),
             patch.object(app, "deliver_article"),
         )
@@ -215,7 +215,7 @@ class MonitorFlowTests(unittest.TestCase):
     def test_translation_failure_does_not_block_schedule_and_is_retried(self):
         patches = self._patch_monitor()
         with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5] as translate, patches[6] as deliver, patches[7] as deliver_article:
-            translate.side_effect = lambda item: (
+            translate.side_effect = lambda item, **kwargs: (
                 (_ for _ in ()).throw(app.TranslationError("HTTP 429"))
                 if item.news_id == "6"
                 else item
@@ -229,7 +229,7 @@ class MonitorFlowTests(unittest.TestCase):
 
             deliver.reset_mock()
             deliver_article.reset_mock()
-            translate.side_effect = lambda item: item
+            translate.side_effect = lambda item, **kwargs: item
             app.run_monitor(datetime(2026, 9, 8, 1, 6, tzinfo=timezone.utc))
 
             deliver.assert_not_called()

@@ -12,6 +12,7 @@ DEFAULT_STATE = {
     "transfer_ids": [],
     "sent_reminders": [],
     "recent_result_ids": [],
+    "nip_display_name": "废物NIP",
     "last_daily_schedule_date": "",
     "updated_at": "",
 }
