@@ -1,7 +1,16 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-10-03",
-  "matches": {},
+  "matches": {
+    "2399131": {
+      "event": "Stake Pulse Beat III",
+      "match_id": "2399131",
+      "opponent": "Betclic",
+      "signature": "Betclic|Stake Pulse Beat III|2026-10-12T10:00:00Z",
+      "start_at": "2026-10-12T10:00:00Z",
+      "url": "https://www.hltv.org/matches/2399131/ninjas-in-pyjamas-vs-betclic-stake-pulse-beat-iii"
+    }
+  },
   "news_ids": [
     "45644",
     "45641",
@@ -138,6 +147,6 @@
     "2398972"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-05T16:30:31.824648Z",
+  "updated_at": "2026-10-05T16:45:20.062780Z",
   "version": 1
 }
