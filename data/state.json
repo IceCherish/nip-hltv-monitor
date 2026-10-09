@@ -9,9 +9,19 @@
       "signature": "Betclic|Stake Pulse Beat III|2026-10-12T10:00:00Z",
       "start_at": "2026-10-12T10:00:00Z",
       "url": "https://www.hltv.org/matches/2399131/ninjas-in-pyjamas-vs-betclic-stake-pulse-beat-iii"
+    },
+    "2399385": {
+      "event": "Thunderpick World Championship 2026",
+      "match_id": "2399385",
+      "opponent": "Falcons",
+      "signature": "Falcons|Thunderpick World Championship 2026|2026-10-14T11:00:00Z",
+      "start_at": "2026-10-14T11:00:00Z",
+      "url": "https://www.hltv.org/matches/2399385/falcons-vs-ninjas-in-pyjamas-thunderpick-world-championship-2026"
     }
   },
   "news_ids": [
+    "45687",
+    "45680",
     "45686",
     "45685",
     "45684",
@@ -19,7 +29,6 @@
     "45682",
     "45681",
     "45641",
-    "45680",
     "45679",
     "45677",
     "45675",
@@ -110,8 +119,7 @@
     "45560",
     "45559",
     "45557",
-    "45556",
-    "45477"
+    "45556"
   ],
   "nip_display_name": "王朝NIP",
   "recent_result_ids": [
@@ -147,6 +155,6 @@
     "2398972"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-09T16:30:29.452422Z",
+  "updated_at": "2026-10-09T23:00:34.396134Z",
   "version": 1
 }
