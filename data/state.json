@@ -2,14 +2,6 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-10-12",
   "matches": {
-    "2399250": {
-      "event": "Stake Pulse Beat III",
-      "match_id": "2399250",
-      "opponent": "Inner Circle",
-      "signature": "Inner Circle|Stake Pulse Beat III|2026-10-12T13:20:00Z",
-      "start_at": "2026-10-12T13:20:00Z",
-      "url": "https://www.hltv.org/matches/2399250/inner-circle-vs-ninjas-in-pyjamas-stake-pulse-beat-iii"
-    },
     "2399385": {
       "event": "Thunderpick World Championship 2026",
       "match_id": "2399385",
@@ -123,6 +115,7 @@
   ],
   "nip_display_name": "复兴NIP",
   "recent_result_ids": [
+    "2399250",
     "2399131"
   ],
   "sent_reminders": [
@@ -149,6 +142,6 @@
     "2399250"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-12T14:30:32.014188Z",
+  "updated_at": "2026-10-12T15:30:28.112718Z",
   "version": 1
 }
