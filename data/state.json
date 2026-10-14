@@ -2,13 +2,13 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-10-14",
   "matches": {
-    "2399385": {
+    "2399408": {
       "event": "Thunderpick World Championship 2026",
-      "match_id": "2399385",
-      "opponent": "Falcons",
-      "signature": "Falcons|Thunderpick World Championship 2026|2026-10-14T12:20:00Z",
-      "start_at": "2026-10-14T12:20:00Z",
-      "url": "https://www.hltv.org/matches/2399385/falcons-vs-ninjas-in-pyjamas-thunderpick-world-championship-2026"
+      "match_id": "2399408",
+      "opponent": "Aurora",
+      "signature": "Aurora|Thunderpick World Championship 2026|2026-10-15T08:30:00Z",
+      "start_at": "2026-10-15T08:30:00Z",
+      "url": "https://www.hltv.org/matches/2399408/aurora-vs-ninjas-in-pyjamas-thunderpick-world-championship-2026"
     }
   },
   "news_ids": [
@@ -113,10 +113,9 @@
     "45584",
     "45583"
   ],
-  "nip_display_name": "复兴NIP",
+  "nip_display_name": "废物NIP",
   "recent_result_ids": [
-    "2399250",
-    "2399131"
+    "2399385"
   ],
   "sent_reminders": [
     "2397722",
@@ -143,6 +142,6 @@
     "2399385"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-14T13:00:40.974587Z",
+  "updated_at": "2026-10-14T14:45:24.780738Z",
   "version": 1
 }
