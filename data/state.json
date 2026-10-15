@@ -6,8 +6,8 @@
       "event": "Thunderpick World Championship 2026",
       "match_id": "2399408",
       "opponent": "Aurora",
-      "signature": "Aurora|Thunderpick World Championship 2026|2026-10-15T08:30:00Z",
-      "start_at": "2026-10-15T08:30:00Z",
+      "signature": "Aurora|Thunderpick World Championship 2026|2026-10-15T08:35:00Z",
+      "start_at": "2026-10-15T08:35:00Z",
       "url": "https://www.hltv.org/matches/2399408/aurora-vs-ninjas-in-pyjamas-thunderpick-world-championship-2026"
     }
   },
@@ -143,6 +143,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-15T08:00:36.932796Z",
+  "updated_at": "2026-10-15T08:30:29.177333Z",
   "version": 1
 }
