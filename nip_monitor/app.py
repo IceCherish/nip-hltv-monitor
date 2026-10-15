@@ -191,9 +191,11 @@ def _distance_to_match(match: Match, now: datetime) -> str:
 
 
 def _schedule_overview_message(
-    matches: list[Match], recent_results: list[Result], now: datetime, *, results_available: bool = True
+    matches: list[Match], recent_results: list[Result], now: datetime, *,
+    results_available: bool = True, nip_display_name: str | None = None,
 ) -> tuple[str, str]:
-    title = "🥷 【NIP 近期赛程预告】"
+    nip_display_name = nip_display_name or _nip_news_display_name(recent_results)
+    title = f"🥷 【{nip_display_name} 近期赛程预告】"
     groups: dict[str, list[Match]] = {}
     ordered = sorted(
         matches,
@@ -217,7 +219,7 @@ def _schedule_overview_message(
                     lines.append("")
                 lines.extend(
                     [
-                        f"⚔️ 对阵: NIP vs {match.opponent}",
+                        f"⚔️ 对阵: {nip_display_name} vs {match.opponent}",
                         f"⏰ 时间: {display_time}",
                         f"⏳ 距离 {_distance_to_match(match, now)}",
                     ]
@@ -245,7 +247,14 @@ def _schedule_overview_message(
     return title, "\n\n".join(sections)
 
 
-def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
+def _reminder_message(
+    match: Match, minutes: int, *, nip_display_name: str = "废物NIP",
+) -> tuple[str, str]:
+    reminder_phrase = {
+        "废物NIP": "吃史警告",
+        "王朝NIP": "让我们草着走",
+        "复兴NIP": "一触即发",
+    }[nip_display_name]
     if minutes <= 1:
         countdown = "🚨 比赛即将开始！"
     elif minutes <= 10:
@@ -253,10 +262,10 @@ def _reminder_message(match: Match, minutes: int) -> tuple[str, str]:
     else:
         countdown = f"🔥 {minutes} 分钟后开战！"
     return (
-        "🚨 【NIP 吃史警告】",
+        f"🚨 【{nip_display_name} {reminder_phrase}】",
         f"{countdown}\n\n"
         f"🎮 赛事：{match.event if match.event != '待定' else '暂未公布'}\n"
-        f"⚔️ 对阵：NIP vs {match.opponent}\n"
+        f"⚔️ 对阵：{nip_display_name} vs {match.opponent}\n"
         f"⏰ 时间：{_format_time(match)}\n\n"
         f"🔗 比赛详情：\n{match.url}",
     )
@@ -376,7 +385,11 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     schedule_sent = schedule_needed and bool(schedule_matches)
     if schedule_sent:
         notifications.append(
-            _schedule_overview_message(schedule_matches, recent_results, now, results_available=results_data is not None)
+            _schedule_overview_message(
+                schedule_matches, recent_results, now,
+                results_available=results_data is not None,
+                nip_display_name=nip_display_name,
+            )
         )
 
     sent_reminders = set(state["sent_reminders"])
@@ -386,7 +399,9 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
             continue
         minutes = int((start - now).total_seconds() // 60)
         if 0 <= minutes <= reminder_minutes:
-            notifications.append(_reminder_message(match, minutes))
+            notifications.append(
+                _reminder_message(match, minutes, nip_display_name=nip_display_name)
+            )
             sent_reminders.add(match.match_id)
 
     for title, message in notifications:

@@ -68,13 +68,60 @@ class MonitorFlowTests(unittest.TestCase):
         )
         _, pending_message = app._reminder_message(pending, 29)
 
-        self.assertEqual(title, "🚨 【NIP 吃史警告】")
+        self.assertEqual(title, "🚨 【废物NIP 吃史警告】")
         self.assertIn("🔥 29 分钟后开战！", regular)
         self.assertIn("🎮 赛事：XSE Pro League 2026", regular)
-        self.assertIn("⚔️ 对阵：NIP vs HEROIC", regular)
+        self.assertIn("⚔️ 对阵：废物NIP vs HEROIC", regular)
         self.assertIn("🚨 仅剩 8 分钟！", urgent)
         self.assertIn("🚨 比赛即将开始！", immediate)
         self.assertIn("🎮 赛事：暂未公布", pending_message)
+
+    def test_schedule_and_reminder_share_dynamic_name_and_preserve_result_text(self):
+        winning = [Result("1", "FaZe", 2, 1, "Recent Event")]
+        losing = [Result("2", "FaZe", 0, 2, "Recent Event")]
+        champion = [Result("3", "FaZe", 2, 0, "Recent Event - 1st")]
+        cases = [
+            (losing, "废物NIP", "吃史警告"),
+            (winning, "复兴NIP", "一触即发"),
+            (champion, "王朝NIP", "让我们草着走"),
+            (None, "王朝NIP", "让我们草着走"),
+        ]
+        for results, name, phrase in cases:
+            with self.subTest(name=name, results_available=results is not None):
+                app.save_state(self.state_path, {
+                    "initialized": True,
+                    "news_ids": ["7", "6"],
+                    "sent_reminders": [],
+                    "nip_display_name": "王朝NIP",
+                })
+                patches = self._patch_monitor()
+                with (
+                    patches[0], patches[1], patches[2],
+                    patches[3] as nip_data, patches[4], patches[5],
+                    patches[6] as deliver, patches[7],
+                ):
+                    nip_data.return_value = (self.matches, results, None)
+                    app.run_monitor(
+                        datetime(2026, 9, 10, 6, 35, tzinfo=timezone.utc),
+                        force_schedule=True,
+                    )
+
+                self.assertEqual(deliver.call_count, 2)
+                schedule, reminder = [call.args for call in deliver.call_args_list]
+                self.assertEqual(schedule[0], f"🥷 【{name} 近期赛程预告】")
+                self.assertIn(f"⚔️ 对阵: {name} vs HEROIC", schedule[1])
+                self.assertEqual(reminder[0], f"🚨 【{name} {phrase}】")
+                self.assertIn(f"⚔️ 对阵：{name} vs HEROIC", reminder[1])
+                if results is None:
+                    self.assertIn("本轮往期赛果暂时无法读取。", schedule[1])
+                elif name == "废物NIP":
+                    self.assertIn("菜得没眼看", schedule[1])
+                else:
+                    result = results[0]
+                    self.assertIn(
+                        f"📊 赛果: NIP {result.nip_score} : {result.opponent_score} FaZe",
+                        schedule[1],
+                    )
 
     def test_reset_news_state_keeps_reminder_history(self):
         app.save_state(
@@ -201,7 +248,7 @@ class MonitorFlowTests(unittest.TestCase):
             app.run_monitor(datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc))
 
             self.assertEqual(deliver.call_count, 1)
-            self.assertEqual(deliver.call_args.args[0], "🥷 【NIP 近期赛程预告】")
+            self.assertEqual(deliver.call_args.args[0], "🥷 【复兴NIP 近期赛程预告】")
             sent_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
             self.assertEqual(sent_ids, ["6", "7"])
 
@@ -333,7 +380,7 @@ class MonitorFlowTests(unittest.TestCase):
 
             app.run_monitor(datetime(2026, 9, 8, 2, 1, tzinfo=timezone.utc))
             self.assertEqual(deliver.call_count, 1)
-            self.assertEqual(deliver.call_args.args[0], "🥷 【NIP 近期赛程预告】")
+            self.assertEqual(deliver.call_args.args[0], "🥷 【复兴NIP 近期赛程预告】")
 
             deliver.reset_mock()
             app.run_monitor(datetime(2026, 9, 8, 2, 7, tzinfo=timezone.utc))
@@ -442,7 +489,7 @@ class MonitorFlowTests(unittest.TestCase):
             article.assert_not_called()
             deliver_article.assert_not_called()
             deliver.assert_called_once()
-            self.assertEqual(deliver.call_args.args[0], "🚨 【NIP 吃史警告】")
+            self.assertEqual(deliver.call_args.args[0], "🚨 【复兴NIP 一触即发】")
             self.assertEqual(app.load_state(self.state_path)["news_ids"], ["cached-news"])
 
     def test_five_day_filter_includes_boundary_but_excludes_day_six(self):

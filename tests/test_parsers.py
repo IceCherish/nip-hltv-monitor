@@ -639,7 +639,8 @@ Thursday - 2026-09-10
             Result("r2", "Sharks", 2, 0, "Stake Ranked Episode 2"),
         ]
         title, rendered = _schedule_overview_message(matches, results, now)
-        self.assertEqual(title, "🥷 【NIP 近期赛程预告】")
+        self.assertEqual(title, "🥷 【复兴NIP 近期赛程预告】")
+        self.assertIn("⚔️ 对阵: 复兴NIP vs 3DMAX", rendered)
         self.assertEqual(rendered.count("🎮 赛事: XSE Pro League 2026"), 1)
         self.assertIn("⏰ 时间: 7/1 15:00", rendered)
         self.assertIn("⏳ 距离 3 天 4 小时", rendered)
