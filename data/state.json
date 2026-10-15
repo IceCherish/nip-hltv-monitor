@@ -1,16 +1,7 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-10-15",
-  "matches": {
-    "2399408": {
-      "event": "Thunderpick World Championship 2026",
-      "match_id": "2399408",
-      "opponent": "Aurora",
-      "signature": "Aurora|Thunderpick World Championship 2026|2026-10-15T08:35:00Z",
-      "start_at": "2026-10-15T08:35:00Z",
-      "url": "https://www.hltv.org/matches/2399408/aurora-vs-ninjas-in-pyjamas-thunderpick-world-championship-2026"
-    }
-  },
+  "matches": {},
   "news_ids": [
     "45722",
     "45723",
@@ -115,6 +106,7 @@
   ],
   "nip_display_name": "废物NIP",
   "recent_result_ids": [
+    "2399408",
     "2399385"
   ],
   "sent_reminders": [
@@ -143,6 +135,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-15T08:30:29.177333Z",
+  "updated_at": "2026-10-15T11:00:37.654817Z",
   "version": 1
 }
