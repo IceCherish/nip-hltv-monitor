@@ -2,13 +2,13 @@
   "initialized": true,
   "last_daily_schedule_date": "2026-10-16",
   "matches": {
-    "2399262": {
+    "2399266": {
       "event": "Stake Pulse Beat III",
-      "match_id": "2399262",
-      "opponent": "Liquid",
-      "signature": "Liquid|Stake Pulse Beat III|2026-10-16T08:00:00Z",
-      "start_at": "2026-10-16T08:00:00Z",
-      "url": "https://www.hltv.org/matches/2399262/ninjas-in-pyjamas-vs-liquid-stake-pulse-beat-iii"
+      "match_id": "2399266",
+      "opponent": "HEROIC",
+      "signature": "HEROIC|Stake Pulse Beat III|2026-10-17T08:00:00Z",
+      "start_at": "2026-10-17T08:00:00Z",
+      "url": "https://www.hltv.org/matches/2399266/ninjas-in-pyjamas-vs-heroic-stake-pulse-beat-iii"
     }
   },
   "news_ids": [
@@ -146,6 +146,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-16T11:45:19.721311Z",
+  "updated_at": "2026-10-16T13:00:42.817998Z",
   "version": 1
 }
