@@ -195,7 +195,12 @@ def _schedule_overview_message(
     results_available: bool = True, nip_display_name: str | None = None,
 ) -> tuple[str, str]:
     nip_display_name = nip_display_name or _nip_news_display_name(recent_results)
-    title = f"🥷 【{nip_display_name} 近期赛程预告】"
+    schedule_phrase, review_title = {
+        "废物NIP": ("赤史预告", "💩 【吃的史中史，方为忍上忍】"),
+        "复兴NIP": ("北伐前瞻", "⚔️ 【冢中枯骨，重振荣光】"),
+        "王朝NIP": ("御驾亲征", "🏆 【王朝掠影，帝业回眸】"),
+    }[nip_display_name]
+    title = f"🥷 【{nip_display_name} {schedule_phrase}】"
     groups: dict[str, list[Match]] = {}
     ordered = sorted(
         matches,
@@ -228,7 +233,7 @@ def _schedule_overview_message(
     else:
         sections.append("目前没有已公布的近期比赛。")
 
-    review = ["---", "", "🏆 【往期赛事回顾】"]
+    review = ["---", "", review_title]
     if not results_available:
         review.extend(["", "本轮往期赛果暂时无法读取。"])
     elif recent_results:

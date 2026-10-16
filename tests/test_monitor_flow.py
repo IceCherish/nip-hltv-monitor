@@ -108,7 +108,13 @@ class MonitorFlowTests(unittest.TestCase):
 
                 self.assertEqual(deliver.call_count, 2)
                 schedule, reminder = [call.args for call in deliver.call_args_list]
-                self.assertEqual(schedule[0], f"🥷 【{name} 近期赛程预告】")
+                expected_titles = {
+                    "废物NIP": ("🥷 【废物NIP 赤史预告】", "💩 【吃的史中史，方为忍上忍】"),
+                    "复兴NIP": ("🥷 【复兴NIP 北伐前瞻】", "⚔️ 【冢中枯骨，重振荣光】"),
+                    "王朝NIP": ("🥷 【王朝NIP 御驾亲征】", "🏆 【王朝掠影，帝业回眸】"),
+                }
+                self.assertEqual(schedule[0], expected_titles[name][0])
+                self.assertIn(expected_titles[name][1], schedule[1])
                 self.assertIn(f"⚔️ 对阵: {name} vs HEROIC", schedule[1])
                 self.assertEqual(reminder[0], f"🚨 【{name} {phrase}】")
                 self.assertIn(f"⚔️ 对阵：{name} vs HEROIC", reminder[1])
@@ -248,7 +254,7 @@ class MonitorFlowTests(unittest.TestCase):
             app.run_monitor(datetime(2026, 9, 8, 1, 0, tzinfo=timezone.utc))
 
             self.assertEqual(deliver.call_count, 1)
-            self.assertEqual(deliver.call_args.args[0], "🥷 【复兴NIP 近期赛程预告】")
+            self.assertEqual(deliver.call_args.args[0], "🥷 【复兴NIP 北伐前瞻】")
             sent_ids = [call.args[1].news_id for call in deliver_article.call_args_list]
             self.assertEqual(sent_ids, ["6", "7"])
 
@@ -380,7 +386,7 @@ class MonitorFlowTests(unittest.TestCase):
 
             app.run_monitor(datetime(2026, 9, 8, 2, 1, tzinfo=timezone.utc))
             self.assertEqual(deliver.call_count, 1)
-            self.assertEqual(deliver.call_args.args[0], "🥷 【复兴NIP 近期赛程预告】")
+            self.assertEqual(deliver.call_args.args[0], "🥷 【复兴NIP 北伐前瞻】")
 
             deliver.reset_mock()
             app.run_monitor(datetime(2026, 9, 8, 2, 7, tzinfo=timezone.utc))
