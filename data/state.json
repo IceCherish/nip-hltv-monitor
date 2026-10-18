@@ -1,16 +1,7 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-10-17",
-  "matches": {
-    "2399269": {
-      "event": "Stake Pulse Beat III",
-      "match_id": "2399269",
-      "opponent": "MIBR",
-      "signature": "MIBR|Stake Pulse Beat III|2026-10-17T17:00:00Z",
-      "start_at": "2026-10-17T17:00:00Z",
-      "url": "https://www.hltv.org/matches/2399269/ninjas-in-pyjamas-vs-mibr-stake-pulse-beat-iii"
-    }
-  },
+  "matches": {},
   "news_ids": [
     "45747",
     "45746",
@@ -150,6 +141,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-10-17T23:00:36.200273Z",
+  "updated_at": "2026-10-18T00:30:29.570010Z",
   "version": 1
 }
