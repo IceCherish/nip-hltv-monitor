@@ -1,8 +1,19 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-10-17",
-  "matches": {},
+  "matches": {
+    "2400285": {
+      "event": "Stake Ranked Episode 6",
+      "match_id": "2400285",
+      "opponent": "UNiTY",
+      "signature": "UNiTY|Stake Ranked Episode 6|2026-11-17T16:00:00Z",
+      "start_at": "2026-11-17T16:00:00Z",
+      "url": "https://www.hltv.org/matches/2400285/ninjas-in-pyjamas-vs-unity-stake-ranked-episode-6"
+    }
+  },
   "news_ids": [
+    "45888",
+    "45904",
     "45887",
     "45903",
     "45901",
@@ -100,9 +111,7 @@
     "45781",
     "45775",
     "45779",
-    "45778",
-    "45708",
-    "45767"
+    "45778"
   ],
   "nip_display_name": "王朝NIP",
   "recent_result_ids": [
@@ -141,6 +150,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-03T16:30:33.409117Z",
+  "updated_at": "2026-11-03T23:00:38.516461Z",
   "version": 1
 }
