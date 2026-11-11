@@ -9,6 +9,14 @@
       "signature": "UNiTY|Stake Ranked Episode 6|2026-11-17T16:00:00Z",
       "start_at": "2026-11-17T16:00:00Z",
       "url": "https://www.hltv.org/matches/2400285/ninjas-in-pyjamas-vs-unity-stake-ranked-episode-6"
+    },
+    "2400496": {
+      "event": "PGL Major Singapore 2026 Stage 1",
+      "match_id": "2400496",
+      "opponent": "M80",
+      "signature": "M80|PGL Major Singapore 2026 Stage 1|2026-11-24T05:00:00Z",
+      "start_at": "2026-11-24T05:00:00Z",
+      "url": "https://www.hltv.org/matches/2400496/ninjas-in-pyjamas-vs-m80-pgl-major-singapore-2026-stage-1"
     }
   },
   "news_ids": [
@@ -150,6 +158,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-11T15:45:22.187919Z",
+  "updated_at": "2026-11-11T16:45:22.448064Z",
   "version": 1
 }
