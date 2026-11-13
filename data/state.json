@@ -1,6 +1,6 @@
 {
   "initialized": true,
-  "last_daily_schedule_date": "2026-10-17",
+  "last_daily_schedule_date": "2026-11-13",
   "matches": {
     "2400285": {
       "event": "Stake Ranked Episode 6",
@@ -158,6 +158,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-13T03:45:23.576731Z",
+  "updated_at": "2026-11-13T04:00:36.084203Z",
   "version": 1
 }
