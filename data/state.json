@@ -1,14 +1,14 @@
 {
   "initialized": true,
-  "last_daily_schedule_date": "2026-11-16",
+  "last_daily_schedule_date": "2026-11-18",
   "matches": {
-    "2400285": {
+    "2400443": {
       "event": "Stake Ranked Episode 6",
-      "match_id": "2400285",
-      "opponent": "UNiTY",
-      "signature": "UNiTY|Stake Ranked Episode 6|2026-11-17T16:00:00Z",
-      "start_at": "2026-11-17T16:00:00Z",
-      "url": "https://www.hltv.org/matches/2400285/ninjas-in-pyjamas-vs-unity-stake-ranked-episode-6"
+      "match_id": "2400443",
+      "opponent": "Luminosity",
+      "signature": "Luminosity|Stake Ranked Episode 6|2026-11-18T18:30:00Z",
+      "start_at": "2026-11-18T18:30:00Z",
+      "url": "https://www.hltv.org/matches/2400443/ninjas-in-pyjamas-vs-luminosity-stake-ranked-episode-6"
     },
     "2400496": {
       "event": "PGL Major Singapore 2026 Stage 1",
@@ -154,6 +154,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-18T00:30:31.528936Z",
+  "updated_at": "2026-11-18T03:15:21.752250Z",
   "version": 1
 }
