@@ -674,6 +674,53 @@ Thursday - 2026-09-10
         self.assertEqual(_nip_news_display_name(champion), "王朝NIP")
         self.assertEqual(_nip_news_display_name([]), "废物NIP")
 
+    def test_champion_title_carries_only_into_unbeaten_unfinished_next_event(self):
+        champion = Result("old", "FaZe", 2, 0, "Previous Event - 1st")
+        win = Result("new", "UNiTY", 2, 0, "Current Event")
+        cases = [
+            ("unbeaten after championship", [win, champion], "王朝NIP"),
+            (
+                "unbeaten after non-championship",
+                [win, Result("old", "FaZe", 2, 0, "Previous Event - 2nd")],
+                "复兴NIP",
+            ),
+            (
+                "loss cancels carry even with winning record",
+                [win, Result("loss", "A", 0, 2, win.event),
+                 Result("win", "B", 2, 1, win.event), champion],
+                "复兴NIP",
+            ),
+            (
+                "even record after championship",
+                [win, Result("loss", "A", 0, 2, win.event), champion],
+                "废物NIP",
+            ),
+            (
+                "unknown score cannot carry championship",
+                [Result("new", "A", 0, 0, win.event), champion],
+                "复兴NIP",
+            ),
+            (
+                "older championship cannot skip previous event",
+                [win, Result("middle", "A", 2, 0, "Middle Event - 3-4th"), champion],
+                "复兴NIP",
+            ),
+            (
+                "check all current results even when events interleave",
+                [win, champion, Result("loss", "A", 0, 2, win.event)],
+                "废物NIP",
+            ),
+        ]
+        for placement in ("2nd", "3rd", "4th", "5-6th", "7-8th"):
+            cases.append((
+                f"completed event {placement} cannot carry championship",
+                [Result("new", "A", 2, 0, f"Current Event - {placement}"), champion],
+                "复兴NIP",
+            ))
+        for label, results, expected in cases:
+            with self.subTest(case=label):
+                self.assertEqual(_nip_news_display_name(results), expected)
+
     def test_tied_score_does_not_count_as_completed_loss(self):
         now = datetime(2026, 9, 8, 3, 0, tzinfo=timezone.utc)
         _, rendered = _schedule_overview_message([], [Result("1", "Opponent", 0, 0, "Event")], now)

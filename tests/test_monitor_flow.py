@@ -80,10 +80,14 @@ class MonitorFlowTests(unittest.TestCase):
         winning = [Result("1", "FaZe", 2, 1, "Recent Event")]
         losing = [Result("2", "FaZe", 0, 2, "Recent Event")]
         champion = [Result("3", "FaZe", 2, 0, "Recent Event - 1st")]
+        defending_champion = winning + [
+            Result("previous", "Liquid", 2, 1, "Previous Event - 1st")
+        ]
         cases = [
             (losing, "废物NIP", "吃史警告"),
             (winning, "复兴NIP", "一触即发"),
             (champion, "王朝NIP", "让我们草着走"),
+            (defending_champion, "王朝NIP", "让我们草着走"),
             (None, "王朝NIP", "让我们草着走"),
         ]
         for results, name, phrase in cases:
@@ -128,6 +132,11 @@ class MonitorFlowTests(unittest.TestCase):
                         f"📊 赛果: NIP {result.nip_score} : {result.opponent_score} FaZe",
                         schedule[1],
                     )
+                    self.assertNotIn("Previous Event", schedule[1])
+                    self.assertNotIn("Liquid", schedule[1])
+                self.assertEqual(
+                    app.load_state(self.state_path)["nip_display_name"], name
+                )
 
     def test_reset_news_state_keeps_reminder_history(self):
         app.save_state(

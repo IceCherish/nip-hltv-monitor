@@ -101,9 +101,27 @@ def _recent_event_is_first_place(recent_results: list[Result]) -> bool:
     )
 
 
-def _nip_news_display_name(recent_results: list[Result]) -> str:
+def _nip_news_display_name(results: list[Result]) -> str:
+    recent_results = _latest_event_results(results)
     if _recent_event_is_first_place(recent_results):
         return "王朝NIP"
+    if recent_results:
+        event = recent_results[0].event
+        has_final_placement = bool(
+            re.search(r"\s+-\s+\d+(?:-\d+)?(?:st|nd|rd|th)\s*$", event, re.IGNORECASE)
+        )
+        unbeaten = all(
+            result.nip_score > result.opponent_score for result in recent_results
+        )
+        previous_results = _latest_event_results(
+            [result for result in results if result.event != event]
+        )
+        if (
+            not has_final_placement
+            and unbeaten
+            and _recent_event_is_first_place(previous_results)
+        ):
+            return "王朝NIP"
     if recent_results and not _recent_event_is_bad(recent_results):
         return "复兴NIP"
     return "废物NIP"
@@ -331,7 +349,7 @@ def run_monitor(now: datetime | None = None, *, force_schedule: bool = False) ->
     recent_results = _latest_event_results(results)
     state = load_state(STATE_PATH)
     if results_data is not None:
-        nip_display_name = _nip_news_display_name(recent_results)
+        nip_display_name = _nip_news_display_name(results)
     else:
         nip_display_name = state.get("nip_display_name", "废物NIP")
     notifications: list[tuple[str, str]] = []
