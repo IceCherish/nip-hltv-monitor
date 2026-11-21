@@ -1,6 +1,6 @@
 {
   "initialized": true,
-  "last_daily_schedule_date": "2026-11-20",
+  "last_daily_schedule_date": "2026-11-21",
   "matches": {
     "2400496": {
       "event": "PGL Major Singapore 2026 Stage 1",
@@ -148,6 +148,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-21T11:45:23.817526Z",
+  "updated_at": "2026-11-21T12:15:23.122333Z",
   "version": 1
 }
