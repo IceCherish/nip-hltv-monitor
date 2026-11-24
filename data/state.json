@@ -104,11 +104,9 @@
     "45920",
     "45912"
   ],
-  "nip_display_name": "废物NIP",
+  "nip_display_name": "复兴NIP",
   "recent_result_ids": [
-    "2400445",
-    "2400443",
-    "2400285"
+    "2400496"
   ],
   "sent_reminders": [
     "2397722",
@@ -139,6 +137,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-24T05:45:27.814987Z",
+  "updated_at": "2026-11-24T06:00:38.484488Z",
   "version": 1
 }
