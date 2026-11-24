@@ -1,17 +1,9 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-11-22",
-  "matches": {
-    "2400496": {
-      "event": "PGL Major Singapore 2026 Stage 1",
-      "match_id": "2400496",
-      "opponent": "M80",
-      "signature": "M80|PGL Major Singapore 2026 Stage 1|2026-11-24T05:00:00Z",
-      "start_at": "2026-11-24T05:00:00Z",
-      "url": "https://www.hltv.org/matches/2400496/ninjas-in-pyjamas-vs-m80-pgl-major-singapore-2026-stage-1"
-    }
-  },
+  "matches": {},
   "news_ids": [
+    "46036",
     "46034",
     "46033",
     "46025",
@@ -110,8 +102,7 @@
     "45922",
     "45920",
     "45912",
-    "45899",
-    "45921"
+    "45899"
   ],
   "nip_display_name": "废物NIP",
   "recent_result_ids": [
@@ -148,6 +139,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-24T05:15:21.949508Z",
+  "updated_at": "2026-11-24T05:30:36.289074Z",
   "version": 1
 }
