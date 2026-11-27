@@ -1,7 +1,16 @@
 {
   "initialized": true,
   "last_daily_schedule_date": "2026-11-22",
-  "matches": {},
+  "matches": {
+    "2400585": {
+      "event": "PGL Major Singapore 2026 Stage 2",
+      "match_id": "2400585",
+      "opponent": "Nemiga",
+      "signature": "Nemiga|PGL Major Singapore 2026 Stage 2|2026-11-28T05:00:00Z",
+      "start_at": "2026-11-28T05:00:00Z",
+      "url": "https://www.hltv.org/matches/2400585/nemiga-vs-ninjas-in-pyjamas-pgl-major-singapore-2026-stage-2"
+    }
+  },
   "news_ids": [
     "46069",
     "46078",
@@ -139,6 +148,6 @@
     "2399408"
   ],
   "transfer_ids": [],
-  "updated_at": "2026-11-27T23:00:42.051924Z",
+  "updated_at": "2026-11-27T23:15:22.388323Z",
   "version": 1
 }
